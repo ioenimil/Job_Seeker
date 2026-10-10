@@ -85,68 +85,75 @@ class CoverLetterGenerator:
             f"end-to-end RAG platform for BoaSoft and agentic tool-calling datasets for Turing, so I am comfortable working "
             f"where infrastructure, product, and the people using it meet."
         )
-        
+
+        achievements_by_id = {ach["id"]: (ach["title"], ach["text"]) for ach in applicant.ACHIEVEMENTS}
+
         # Paragraph 2 & bullet points based on company type
         if company_type == "ai":
             p2 = (
                 "Getting AI systems out of a demo and into a customer's hands is as much an engineering problem as a "
                 "modelling one. I work across both sides of that gap:"
             )
-            b1 = ("Applied AI Delivery", "I built an end-to-end RAG system with FastAPI and the Zilliz vector store, grounding answers in a client's verified documents, with a serverless ingestion pipeline and a React frontend for context-aware document interrogation.")
-            b2 = ("Evaluation-Driven Agents", "I architected a natural-language analytics agent on CopilotKit and Cube Core, and used a DeepEval golden dataset to raise output reliability from 74% to 96% by constraining queries to declared measures and dimensions.")
-            b3 = ("Production Platform", "I run containerized workloads on production Kubernetes with GitOps delivery via Argo CD, secrets from HashiCorp Vault, and Prometheus, Loki, Grafana, and Jaeger observability, so what I ship stays running.")
-            bullets = [b1, b2, b3]
+            bullets = [
+                achievements_by_id["applied-ai-delivery"],
+                achievements_by_id["evaluation-driven-agents"],
+                achievements_by_id["production-platform"]
+            ]
 
         elif company_type == "consultancy":
             p2 = (
                 "Client engagements reward engineers who can land in an unfamiliar environment, understand what the "
                 "client actually needs, and leave behind something that keeps running after handover:"
             )
-            b1 = ("Client-Facing Delivery", "At Turing I exceeded client KPIs for data accuracy and volume, helping take the team to #1 in dataset quality on client-verified benchmarks; at BoaSoft I shipped a RAG platform built around the client's own documents.")
-            b2 = ("Infrastructure as Code", "I design scalable AWS environments with Terraform and Docker, including a secure multi-tier VPC and modular application layers, so environments are reproducible across clients.")
-            b3 = ("GitOps &amp; Secrets", "I implement GitOps delivery with Argo CD, treating Git as the single source of truth for cluster state, and inject runtime credentials from HashiCorp Vault to keep secrets out of images and repositories.")
-            bullets = [b1, b2, b3]
+            bullets = [
+                achievements_by_id["client-facing-delivery"],
+                achievements_by_id["infrastructure-as-code"],
+                achievements_by_id["gitops-secrets"]
+            ]
 
         elif company_type == "fintech":
             p2 = (
                 "Transactional systems demand reliability, auditability, and disciplined delivery. I bring hands-on "
                 "experience with each:"
             )
-            b1 = ("Event-Driven Financial Systems", "I won 1st place at the KNUST Technology Week Hackathon with a containerized remittance platform using Kafka for event streaming, a secure API gateway, an ACID-compliant orchestrator, and immutable audit logging.")
-            b2 = ("Secure CI/CD", "I engineered a cost-optimized Jenkins pipeline with auto-scaling EC2 Spot agents, and secured a Jenkins setup for 10 developers with Keycloak SSO and RBAC across 5 cross-functional teams.")
-            b3 = ("Observability", "I deployed Prometheus, Thanos, Loki, Grafana, and Jaeger with distributed tracing and automated alerting, reducing Mean Time To Resolution (MTTR).")
-            bullets = [b1, b2, b3]
+            bullets = [
+                achievements_by_id["event-driven-financial-systems"],
+                achievements_by_id["secure-cicd"],
+                achievements_by_id["observability-mttr"]
+            ]
 
         elif company_type == "telecom" or company_type == "isp":
             p2 = (
                 "Telecom and ISP systems rely heavily on robust infrastructure and proactive monitoring. "
                 "I bring a strong foundation in both:"
             )
-            b1 = ("AWS Infrastructure", "I design scalable AWS environments using Terraform and Docker, including a secure multi-tier VPC and modular application layers.")
-            b2 = ("Kubernetes in Production", "I operate containerized workloads on Kubernetes, right-sizing pod requests and limits to eliminate insufficient-capacity scheduling failures and reclaim wasted node capacity.")
-            b3 = ("Systems Monitoring", "I deployed Prometheus, Thanos, Loki, Grafana, and Jaeger with long-term metric retention, distributed tracing, and automated alerting to reduce Mean Time To Resolution (MTTR).")
-            bullets = [b1, b2, b3]
+            bullets = [
+                achievements_by_id["aws-infrastructure"],
+                achievements_by_id["kubernetes-in-production"],
+                achievements_by_id["systems-monitoring"]
+            ]
 
         elif company_type == "bank":
             p2 = (
                 "Financial environments demand strong security posture, auditability, and controlled access. "
                 "I bring experience building these into the platform itself:"
             )
-            b1 = ("Threat Detection &amp; Audit", "I integrated AWS GuardDuty and CloudTrail for automated threat detection and immutable audit trails, enforcing least-privilege governance.")
-            b2 = ("Identity &amp; Access Control", "I secured a Jenkins CI/CD pipeline for 10 developers with Keycloak SSO and role-based access control across 2 sensitive projects and 5 teams.")
-            b3 = ("Secrets Management", "I deliver to Kubernetes through Argo CD GitOps and inject runtime credentials from HashiCorp Vault, keeping secrets out of images and repositories.")
-            bullets = [b1, b2, b3]
+            bullets = [
+                achievements_by_id["threat-detection-audit"],
+                achievements_by_id["identity-access-control"],
+                achievements_by_id["gitops-secrets"]
+            ]
 
         else: # startup / general product hunt
             p2 = (
                 "In fast-growing startups, balancing engineering velocity and system reliability is critical. "
                 "I bring automation-first skills that directly support that goal:"
             )
-            b1 = ("Infrastructure Velocity", "I provision production-ready AWS infrastructure with Terraform and Docker, including a secure multi-tier VPC and modular application layers.")
-            b2 = ("Fast Feedback Loops", "I built a cost-optimized Jenkins CI/CD engine with EC2 Spot agents that auto-scale with build queue depth, speeding up developer feedback while cutting compute cost.")
-            b3 = ("Developer Self-Service", "I deployed Prometheus, Loki, Grafana, and Jaeger with self-service dashboards that give developers on-demand insight into their environments and error logs.")
-            bullets = [b1, b2, b3]
-            
+            bullets = [
+                achievements_by_id["infrastructure-velocity"],
+                achievements_by_id["fast-feedback-loops"],
+                achievements_by_id["developer-self-service"]
+            ]
 
         # Paragraph 3: Closing
         p3 = (
@@ -215,10 +222,13 @@ class CoverLetterGenerator:
         ]))
         return table
 
-    def generate_pdf(self, company_name, role_title, company_type, recipient_name, company_address, output_path):
+    def generate_pdf(self, company_name, role_title, company_type, recipient_name, company_address, output_path, pitch=None):
         """
         Generates a professionally styled PDF cover letter.
+        When pitch is provided, uses pitch's lead and bullets.
         """
+        import xml.sax.saxutils as saxutils
+
         doc = SimpleDocTemplate(
             output_path, pagesize=A4,
             leftMargin=0.9 * inch, rightMargin=0.9 * inch,
@@ -231,6 +241,24 @@ class CoverLetterGenerator:
         content_width = doc.width - 12
         styles = self._get_styles()
         letter = self.get_letter_content(company_name, role_title, company_type)
+
+        intro_text = letter["intro"]
+        closing_text = letter["closing"]
+
+        if pitch:
+            lead_text = saxutils.escape(pitch.get("lead", letter["lead"]))
+            raw_bullets = pitch.get("bullets", [])
+            # pitch bullets can be list of dicts {"title": ..., "text": ...} or tuples
+            normalized_bullets = []
+            for b in raw_bullets:
+                if isinstance(b, dict):
+                    normalized_bullets.append((b.get("title", ""), b.get("text", "")))
+                elif isinstance(b, (list, tuple)) and len(b) >= 2:
+                    normalized_bullets.append((b[0], b[1]))
+        else:
+            lead_text = letter["lead"]
+            normalized_bullets = letter["bullets"]
+
         story = []
 
         story.append(self._letterhead(styles, content_width))
@@ -241,19 +269,19 @@ class CoverLetterGenerator:
         story.append(Spacer(1, 12))
         story.append(Paragraph(f"{applicant.salutation(recipient_name)},", styles["body"]))
 
-        story.append(Paragraph(letter["intro"], styles["body"]))
-        story.append(Paragraph(letter["lead"], styles["body"]))
+        story.append(Paragraph(intro_text, styles["body"]))
+        story.append(Paragraph(lead_text, styles["body"]))
         items = [
-            ListItem(Paragraph(f'<font name="{self.semibold}" color="{self.ink.hexval()}">{title}.</font> {text}',
+            ListItem(Paragraph(f'<font name="{self.semibold}" color="{self.ink.hexval()}">{saxutils.escape(title)}.</font> {saxutils.escape(text)}',
                                styles["bullet"]), spaceAfter=6)
-            for title, text in letter["bullets"]
+            for title, text in normalized_bullets
         ]
         story.append(ListFlowable(
             items, bulletType="bullet", start="\u2022", bulletFontName=self.semibold, bulletFontSize=10,
             bulletColor=self.accent, leftIndent=16, bulletOffsetY=0,
         ))
         story.append(Spacer(1, 6))
-        story.append(Paragraph(letter["closing"], styles["body"]))
+        story.append(Paragraph(closing_text, styles["body"]))
 
         story.append(KeepTogether([
             Spacer(1, 6),
@@ -268,3 +296,4 @@ class CoverLetterGenerator:
         doc.build(story, onFirstPage=self._draw_page_frame, onLaterPages=self._draw_page_frame)
         print(f"[Generator] Generated cover letter PDF at: {output_path}")
         return output_path
+

@@ -147,3 +147,38 @@ class ExaSearch:
         content = self._structured_search(
             f"{company_name} careers remote engineer location requirements", system_prompt, VERIFY_SCHEMA)
         return content or {"ghana_eligible": "unclear", "note": "Verification search failed."}
+
+    def company_summary(self, website):
+        """
+        Fetches a summary of the company's product, customers, and tech stack from its website using Exa's contents endpoint.
+        """
+        if not website:
+            return ""
+        url = "https://api.exa.ai/contents"
+        headers = {
+            "x-api-key": self.api_key,
+            "Content-Type": "application/json"
+        }
+        summary_query = "What does this company do, what products/services do they build, who are their customers, and what is their tech stack?"
+        payload = {
+            "urls": [website],
+            "summary": {
+                "query": summary_query
+            }
+        }
+        try:
+            response = requests.post(url, json=payload, headers=headers, timeout=60)
+            if response.status_code == 200:
+                data = response.json()
+                results = data.get("results", [])
+                if results and results[0].get("summary"):
+                    return results[0]["summary"].strip()
+                # fallback: check statuses or other result properties
+                return ""
+            else:
+                print(f"[Exa] Summary retrieval failed: {response.status_code} - {response.text}")
+                return ""
+        except Exception as e:
+            print(f"[Exa] Exception during company summary retrieval: {e}")
+            return ""
+
