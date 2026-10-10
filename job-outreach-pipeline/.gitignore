@@ -7,12 +7,29 @@
 !README.md
 !.env.example
 !outreach_queue.example.csv
+!requirements.txt
+
+# Bundled letter font (IBM Plex Sans, SIL Open Font License)
+!fonts/
+!fonts/*.ttf
+!fonts/OFL.txt
 
 # Whitelist pipeline core scripts
 !apify_scraper.py
+!applicant.py
 !config.py
 !cover_letter_generator.py
 !email_sender.py
 !exa_search.py
 !outreach_pipeline.py
 !followup_pipeline.py
+!db.py
+!migrate_from_csv.py
+!contact_enricher.py
+!check_inbox.py
+!triage.py
+!llm_tailor.py
+
+# Tests
+!tests/
+!tests/*.py

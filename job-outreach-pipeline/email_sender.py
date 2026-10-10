@@ -3,6 +3,7 @@ import ssl
 import os
 from email.message import EmailMessage
 from config import config
+import applicant
 
 class EmailSender:
     def __init__(self):
@@ -11,7 +12,7 @@ class EmailSender:
         if not self.sender_email or not self.password:
             raise ValueError("SENDER_EMAIL or GMAIL_APP_PASSWORD is missing in configuration.")
             
-    def send_outreach_email(self, recipient_email, company_name, cover_letter_path, cv_path, role_title="DevOps & Cloud Engineer"):
+    def send_outreach_email(self, recipient_email, company_name, cover_letter_path, cv_path, role_title=applicant.DEFAULT_ROLE):
         """
         Sends an outreach email with the CV and cover letter attached.
         """
@@ -22,32 +23,10 @@ class EmailSender:
         msg = EmailMessage()
         msg["From"] = self.sender_email
         msg["To"] = recipient_email
-        msg["Subject"] = f"DevOps & Cloud Engineering Application - Abraham Gyamfi"
+        msg["Subject"] = applicant.subject(role_title)
 
         # Email body (highly professional and brief)
-        body = (
-            f"Dear Recruiting Team at {company_name},\n\n"
-            f"I hope this email finds you well.\n\n"
-            f"My name is Abraham Gyamfi. I am a Computer Science graduate from KNUST, "
-            f"an AWS Certified Solutions Architect – Associate, and an active DevOps Engineer at AmaliTech.\n\n"
-            f"I am writing to express my strong interest in DevOps and Cloud Engineering opportunities at {company_name}. "
-            f"To share details on how my background aligns with your work, I have attached my CV and a tailored cover letter.\n\n"
-            f"Some highlights of my work include:\n"
-            f"- Architecting highly available AWS infrastructure (EC2, RDS, DynamoDB, S3, EKS, Lambda, ECS) using modular Terraform and CloudFormation.\n"
-            f"- Deploying, managing, and scaling containerized workloads on Kubernetes (Amazon EKS) for resilient, highly available applications.\n"
-            f"- Designing and maintaining automated CI/CD pipelines with Jenkins, integrating security testing into deployment workflows.\n"
-            f"- Implementing monitoring and logging architectures using AWS CloudWatch, Prometheus, and Grafana to improve system visibility and reduce MTTR.\n"
-            f"- Automating routine infrastructure maintenance with Bash and Python to reduce manual overhead.\n\n"
-            f"I would welcome the opportunity to speak briefly with a member of your team or engineering leads about how "
-            f"my automation skills and operational experience can add value to {company_name}.\n\n"
-            f"Thank you for your time and consideration.\n\n"
-            f"Best regards,\n\n"
-            f"Abraham Gyamfi\n"
-            f"Kumasi, Ghana\n"
-            f"Phone: +233 55 784 9795\n"
-            f"LinkedIn: https://www.linkedin.com/in/opoku-gyamfi-abraham-959980392\n"
-            f"GitHub: https://github.com/AbrahamGyamfi\n"
-        )
+        body = applicant.outreach_body(company_name, role_title)
         msg.set_content(body)
         
         # Attach Cover Letter

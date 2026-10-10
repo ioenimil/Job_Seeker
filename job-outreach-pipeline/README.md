@@ -31,10 +31,11 @@ The pipeline consists of three core phases that can be run manually or triggered
 | **`followup_pipeline.py`** | Follow-up manager to check candidate dates, apply exclusions, and send in-thread check-ins. |
 | **`email_sender.py`** | Secure SMTP client with attachment routing. |
 | **`cover_letter_generator.py`** | Dynamic PDF compiler using ReportLab styles. |
+| **`applicant.py`** | Your profile: name, contact links, headline, CV path, target roles, and cold email body. |
 | **`config.py`** | Zero-dependency environment variable loader. |
 | **`apify_scraper.py`** | Apify Actor interface for crawling domain contact pages. |
 | **`exa_search.py`** | Exa API wrapper for semantic queries. |
-| **`outreach_queue.csv`** | Central SQLite-like tracking database of target companies and statuses. |
+| **`outreach_queue.csv`** | Central SQLite-like tracking database of target companies and statuses. `scope`, `ghana_eligibility`, `evidence_url` and `careers_url` record why each company qualifies and where to apply. |
 | **`outreach_log.csv`** | History of successfully executed sends and timestamps. |
 
 ---
@@ -61,12 +62,15 @@ Open `.env` and fill in your details:
 *   **`SENDER_EMAIL`:** Your Gmail address.
 *   **`GMAIL_APP_PASSWORD`:** A 16-character Google App Password (not your normal password). You must have 2-Step Verification enabled to create this at [Google App Passwords](https://myaccount.google.com/apppasswords).
 
-### 3. Add Your CV
-1. Save your master resume as a PDF in the root directory.
-2. Open `outreach_pipeline.py` and modify `CV_PATH` (line 17) to match your resume's filename:
+### 3. Add Your CV & Profile
+1. Save your master resume as a PDF in the `job-outreach-pipeline/` directory.
+2. Open `applicant.py` and set your name, contact details, headline, and `CV_PATH` to match your resume's filename:
    ```python
    CV_PATH = "Your_Name_CV.pdf"
    ```
+3. Cover letter wording per `company_type` lives in `cover_letter_generator.py`; the cold email body lives in `applicant.py`.
+
+Supported `company_type` values: `general_startup`, `consultancy`, `fintech`, `isp`/`telecom`, `bank`, and `ai`. AI/ML companies (`ai`) are pitched for a Forward Deployed Engineer role. Consultancies get a Forward Deployed / Platform Engineer pitch. Every other type is pitched for a Platform & DevOps Engineer role (see `ROLE_BY_TYPE` in `applicant.py`).
 
 ### 4. Create the Target Queue
 Copy the database template to start fresh:
@@ -82,7 +86,7 @@ Run the orchestrator using Python:
 
 | Command | Usage | Description |
 | :--- | :--- | :--- |
-| **Search** | `py outreach_pipeline.py search "[query]" [limit]` | Search for new target companies (e.g. `py outreach_pipeline.py search "fintech startups in Lagos" 10`) |
+| **Search** | `py outreach_pipeline.py search "[query]" [local\|remote]` | Find employers with Exa structured search. `local` (default) keeps companies based in Ghana; `remote` keeps remote companies whose own careers pages show Ghana is an eligible hiring location (each one is double-checked, and US/EU-only firms are skipped). E.g. `py outreach_pipeline.py search "remote-first startups hiring engineers in Africa" remote` |
 | **Scrape** | `py outreach_pipeline.py scrape` | Crawls target homepages to resolve domains and identify general emails. |
 | **Generate** | `py outreach_pipeline.py generate` | Dynamic-compiles cover letter PDFs inside `generated_letters/` for inspection. |
 | **Send** | `py outreach_pipeline.py send` | Sends emails to up to 15 companies marked as `Approved` in `outreach_queue.csv` and marks them `Sent`. |

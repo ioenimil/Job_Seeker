@@ -8,6 +8,7 @@ import ssl
 from email.message import EmailMessage
 from datetime import datetime, timedelta
 from config import config
+import applicant
 
 # Load .env
 if os.path.exists(".env"):
@@ -19,18 +20,12 @@ if os.path.exists(".env"):
                 os.environ[key.strip()] = val.strip()
 
 QUEUE_FILE = "outreach_queue.csv"
-CV_PATH = "Abraham_Gyamfi_Resume.pdf"
+CV_PATH = applicant.CV_PATH
 
-# Exclusions
-BOUNCED_DOMAINS = [
-    "andela.com", "nerasol.com.gh", "bsystemsghana.com", "slydepay.com.gh", 
-    "mpharma.com", "mtn.com", "finconghana.com", "buildwithverge.com", 
-    "gesatech.com", "waspghana.com", "regulus.finance"
-]
+# Exclusions: add email domains that bounced and company names that already replied
+BOUNCED_DOMAINS = []
 
-REPLIED_COMPANIES = [
-    "bs consult", "nita", "it consortium", "mainone", "teksol", "improtech", "comsys", "stanbic"
-]
+REPLIED_COMPANIES = []
 
 def load_queue():
     if not os.path.exists(QUEUE_FILE):
@@ -48,8 +43,8 @@ def get_followup_candidates():
     queue = load_queue()
     candidates = []
     
-    # We follow up on emails sent on or before 6 days ago (July 4, 2026)
-    today = datetime.strptime("2026-07-10", "%Y-%m-%d")
+    # We follow up on emails sent 6 or more days ago
+    today = datetime.now()
     threshold_date = today - timedelta(days=6)
     
     for r in queue:
@@ -88,22 +83,20 @@ def send_followup_email(sender_email, password, r, dry_run=False):
     msg = EmailMessage()
     msg["From"] = sender_email
     msg["To"] = recipient_email
-    msg["Subject"] = f"Re: DevOps & Cloud Engineering Application - Abraham Gyamfi"
+    role_title = applicant.role_for(company_type)
+    original_subject = applicant.subject(role_title)
+    msg["Subject"] = f"Re: {original_subject}"
 
     body_text = (
-        f"Dear {recipient_name},\n\n"
+        f"{applicant.salutation(recipient_name)},\n\n"
         f"I hope this email finds you well.\n\n"
-        f"I am writing to follow up briefly on my application for DevOps and Cloud Engineering opportunities at {company_name} sent last week.\n\n"
+        f"I am writing to follow up briefly on my application for {role_title} opportunities at {company_name} sent last week.\n\n"
         f"I remain very interested in the work your team is doing, and wanted to check if there are any updates or if you would be open to a brief 10-minute call to connect. "
-        f"I would be glad to share how my experience with AWS infrastructure automation, CI/CD pipelines, and observability tooling can support your team's goals.\n\n"
+        f"I would be glad to share how my experience with platform engineering on AWS and Kubernetes, GitOps delivery, observability, and shipping applied AI systems for clients can support your team's goals.\n\n"
         f"I have attached my updated CV for your convenience. Please let me know if there is any other information I can provide.\n\n"
         f"Thank you for your time and consideration.\n\n"
         f"Best regards,\n\n"
-        f"Abraham Gyamfi\n"
-        f"Kumasi, Ghana\n"
-        f"Phone: +233 55 784 9795\n"
-        f"LinkedIn: https://www.linkedin.com/in/opoku-gyamfi-abraham-959980392\n"
-        f"GitHub: https://github.com/AbrahamGyamfi\n"
+        + applicant.signature()
     )
 
     # Append original email context to simulate thread reply
@@ -113,24 +106,8 @@ def send_followup_email(sender_email, password, r, dry_run=False):
         f"Original Message:\n"
         f"From: {sender_email}\n"
         f"Sent: {original_date}\n"
-        f"Subject: DevOps & Cloud Engineering Application - Abraham Gyamfi\n\n"
-        f"Dear Recruiting Team at {company_name},\n\n"
-        f"I hope this email finds you well.\n\n"
-        f"My name is Abraham Gyamfi. I am a Computer Science graduate from KNUST, "
-        f"an AWS Certified Solutions Architect – Associate, and an active DevOps Engineer at AmaliTech.\n\n"
-        f"I am writing to express my strong interest in DevOps and Cloud Engineering opportunities at {company_name}. "
-        f"To share details on how my background aligns with your work, I have attached my CV and a tailored cover letter.\n\n"
-        f"Some highlights of my work include:\n"
-        f"- Architecting highly available AWS infrastructure (EC2, RDS, DynamoDB, S3, EKS, Lambda, ECS) using modular Terraform and CloudFormation.\n"
-        f"- Deploying, managing, and scaling containerized workloads on Kubernetes (Amazon EKS) for resilient, highly available applications.\n"
-        f"- Designing and maintaining automated CI/CD pipelines with Jenkins, integrating security testing into deployment workflows.\n"
-        f"- Implementing monitoring and logging architectures using AWS CloudWatch, Prometheus, and Grafana to improve system visibility and reduce MTTR.\n"
-        f"- Automating routine infrastructure maintenance with Bash and Python to reduce manual overhead.\n\n"
-        f"I would welcome the opportunity to speak briefly with a member of your team or engineering leads about how "
-        f"my automation skills and operational experience can add value to {company_name}.\n\n"
-        f"Thank you for your time and consideration.\n\n"
-        f"Best regards,\n\n"
-        f"Abraham Gyamfi"
+        f"Subject: {original_subject}\n\n"
+        + applicant.outreach_body(company_name, role_title)
     )
     
     msg.set_content(body_text)

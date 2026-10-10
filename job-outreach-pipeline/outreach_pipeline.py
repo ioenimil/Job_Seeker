@@ -2,6 +2,8 @@ import os
 import csv
 import sys
 import time
+import requests
+import re
 import random
 from datetime import datetime
 from urllib.parse import urlparse
@@ -10,11 +12,12 @@ from exa_search import ExaSearch
 from apify_scraper import ApifyScraper
 from cover_letter_generator import CoverLetterGenerator
 from email_sender import EmailSender
+import applicant
 
 QUEUE_FILE = "outreach_queue.csv"
 LOG_FILE = "outreach_log.csv"
 LETTERS_DIR = "generated_letters"
-CV_PATH = "Abraham_Gyamfi_Resume.pdf"
+CV_PATH = applicant.CV_PATH
 
 # Initialize services
 exa = None
@@ -54,7 +57,7 @@ def save_queue(queue):
     fields = [
         "company_name", "website", "email", "company_type", 
         "recipient_name", "company_address", "status", 
-        "date_added", "date_sent"
+        "date_added", "date_sent", "scope", "ghana_eligibility", "evidence_url", "careers_url"
     ]
     with open(QUEUE_FILE, "w", encoding="utf-8", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=fields)
@@ -62,13 +65,17 @@ def save_queue(queue):
         for row in queue:
             writer.writerow(row)
 
-def add_to_queue(company_name, website, email="", company_type="general_startup", recipient="The Recruiting and Technology Team", address="Accra, Ghana"):
+def bare_domain(url):
+    dom = urlparse(url).netloc.lower()
+    return dom[4:] if dom.startswith("www.") else dom
+
+def add_to_queue(company_name, website, email="", company_type="general_startup", recipient="The Recruiting and Technology Team", address="Accra, Ghana", extra=None):
     queue = load_queue()
-    # Deduplicate by company name or website
+    # Deduplicate by company name or website domain
     for row in queue:
         if row["company_name"].lower() == company_name.lower():
             return False
-        if website and row["website"].lower() == website.lower():
+        if website and row["website"] and bare_domain(row["website"]) == bare_domain(website):
             return False
             
     new_row = {
@@ -82,6 +89,7 @@ def add_to_queue(company_name, website, email="", company_type="general_startup"
         "date_added": datetime.now().strftime("%Y-%m-%d"),
         "date_sent": ""
     }
+    new_row.update(extra or {})
     queue.append(new_row)
     save_queue(queue)
     print(f"[Queue] Added company: {company_name}")
@@ -115,6 +123,8 @@ def import_unhyped_employers():
                     current_type = "isp"
                 elif "bank" in sec:
                     current_type = "bank"
+                elif re.search(r"\b(ai|ml)\b", sec) or "machine learning" in sec or "artificial intelligence" in sec:
+                    current_type = "ai"
                 elif "power" in sec or "utilities" in sec:
                     current_type = "consultancy" # utility cloud platforms behave like consultancy/infrastructure
                     
@@ -138,43 +148,115 @@ def import_unhyped_employers():
                     address="Accra, Ghana"
                 )
 
-def run_exa_search(query_str, limit=15):
+COMPANY_TYPES = ["general_startup", "consultancy", "fintech", "isp", "bank", "ai"]
+
+EMPLOYER_RULES = (
+    "Return only real companies that employ software, platform, DevOps, cloud or AI engineers. "
+    "Drop listicles, job boards, news sites, directories, government regulators, recruiters and staffing agencies; "
+    "return the employer itself, never the page that lists it. "
+    "website must be the company's own homepage. company_type: fintech for payments/lending/financial software, "
+    "bank for banks, isp for telecoms and internet providers, consultancy for IT services and consulting firms, "
+    "ai for companies whose product is AI/ML, general_startup otherwise. "
+    "If a field cannot be verified from the pages, omit the company; never guess. "
+)
+
+SCOPE_RULES = {
+    "local": EMPLOYER_RULES + (
+        "Include a company only if it is headquartered in Ghana or has an office in Ghana; set ghana_eligibility to "
+        "ghana_based, hq_location to its Ghana city, and evidence_url to a page showing the Ghana presence."
+    ),
+    "remote": EMPLOYER_RULES + (
+        "Include a company only if it hires remote engineers and a page shows Ghana is an eligible hiring location: "
+        "explicit_ghana if Ghana is named, africa_region if Africa or EMEA-wide remote, worldwide if hiring anywhere. "
+        "Exclude companies whose remote roles are limited to the US, Europe or other regions that exclude Ghana. "
+        "evidence_url must be that careers, job or remote-policy page, preferably on the company's own site or ATS."
+    ),
+}
+
+# Never queue these: your current employer and anyone else you don't want contacted
+EXCLUDED_EMPLOYERS = {"amalitech", "amalitech services gmbh"}
+
+NON_HIRING_INBOXES = ["support", "sales", "privacy", "press", "media", "legal", "noreply", "no-reply",
+                      "billing", "abuse", "security", "dpo", "compliance", "complaints", "fraud",
+                      "help", "investor", "training", "comms", "sellers", "marketing", "autoed"]
+PLACEHOLDER_EMAIL_DOMAINS = ["yourcompany.com", "example.com", "domain.com", "email.com", "company.com",
+                             "youremail.com", "yourdomain.com"]
+
+def site_resolves(url):
+    try:
+        res = requests.get(url, timeout=15, allow_redirects=True, stream=True,
+                           headers={"User-Agent": "Mozilla/5.0"})
+        res.close()
+        return res.status_code < 500
+    except requests.RequestException:
+        return False
+
+def run_exa_search(query_str, scope="local"):
     """
-    Searches for new companies using Exa and adds them to queue.
+    Searches for employers using Exa structured output and adds them to queue.
+    scope 'local' finds Ghana-based firms; 'remote' finds remote firms that hire in Ghana.
     """
-    print(f"[Pipeline] Executing Exa search for query: '{query_str}'...")
-    search_service = get_exa()
-    raw_results = search_service.search_companies(query_str, num_results=limit)
-    cleaned = search_service.get_company_domains(raw_results)
+    print(f"[Pipeline] Executing Exa {scope} employer search for query: '{query_str}'...")
+    exa_service = get_exa()
+    companies = exa_service.find_employers(query_str, SCOPE_RULES[scope])
+    queue = load_queue()
+    known_names = {r["company_name"].lower() for r in queue}
+    known_domains = {bare_domain(r["website"]) for r in queue if r["website"]}
     
     added_count = 0
-    for c in cleaned:
-        # Determine company type based on name or metadata text
-        txt = c["text"].lower()
-        name = c["name"].split(" - ")[0].split(" | ")[0].strip()
+    for c in companies:
+        if c.get("name", "").strip().lower() in EXCLUDED_EMPLOYERS:
+            continue
+        if c.get("name", "").strip().lower() in known_names or bare_domain(c.get("website", "")) in known_domains:
+            continue
+        careers_url = ""
+        if scope == "remote":
+            # Second check against the company's own careers pages before trusting remote eligibility
+            v = exa_service.verify_remote_hiring(c.get("name", ""), c.get("website", ""))
+            if not v.get("ghana_eligible", "").startswith("yes"):
+                print(f"[Pipeline] Skipping '{c.get('name')}': Ghana eligibility {v.get('ghana_eligible')} - {v.get('note', '')}")
+                continue
+            c["website"] = v.get("official_website") or c.get("website", "")
+            c["evidence_url"] = v.get("evidence_url") or c.get("evidence_url", "")
+            c["ghana_eligibility"] = {"yes_named": "explicit_ghana", "yes_africa_or_emea": "africa_region",
+                                      "yes_worldwide": "worldwide"}[v["ghana_eligible"]]
+            careers_url = v.get("careers_url", "")
+        parsed = urlparse(c.get("website", ""))
+        if not parsed.netloc:
+            print(f"[Pipeline] Skipping '{c.get('name')}': no usable website.")
+            continue
+        website = f"{parsed.scheme or 'https'}://{parsed.netloc.lower()}"
+        if not site_resolves(website):
+            print(f"[Pipeline] Skipping '{c.get('name')}': {website} did not respond.")
+            continue
         
-        ctype = "general_startup"
-        if "consulting" in txt or "managed service" in txt:
-            ctype = "consultancy"
-        elif "fintech" in txt or "payment" in txt or "transaction" in txt:
-            ctype = "fintech"
-        elif "telecom" in txt or "isp" in txt or "network" in txt:
-            ctype = "isp"
-        elif "bank" in txt or "fidelity" in txt or "ecobank" in txt:
-            ctype = "bank"
+        ctype = c.get("company_type")
+        if ctype not in COMPANY_TYPES:
+            ctype = "general_startup"
+        address = ""
+        if scope == "local":
+            address = c.get("hq_location") or "Ghana"
+            if "ghana" not in address.lower():
+                address = f"{address}, Ghana"
             
         success = add_to_queue(
-            company_name=name,
-            website=c["domain"],
+            company_name=c["name"].strip(),
+            website=website,
             email="",
             company_type=ctype,
             recipient="The Recruiting and Technology Team",
-            address="Accra, Ghana"
+            address=address,
+            extra={
+                "scope": scope,
+                "ghana_eligibility": c.get("ghana_eligibility", ""),
+                "evidence_url": c.get("evidence_url", ""),
+                "careers_url": careers_url,
+            }
         )
         if success:
             added_count += 1
             
-    print(f"[Pipeline] Exa search complete. Added {added_count} new companies to queue.")
+    print(f"[Pipeline] Exa search complete. Added {added_count} new companies to queue (Exa cost: ${exa_service.total_cost:.3f}).")
 
 def run_apify_scrape():
     """
@@ -251,19 +333,27 @@ def run_apify_scrape():
         emails_list = item.get("emails", [])
         # filter out invalid emails (like PNG, JPG, or placeholder strings)
         valid_emails = [e for e in emails_list if "@" in e and "." in e.split("@")[1]]
-        
+        # Drop inboxes that never reach a hiring team
+        valid_emails = [e for e in valid_emails if not any(
+            k in e.lower().split("@")[0] for k in NON_HIRING_INBOXES)
+            and e.lower().split("@")[1] not in PLACEHOLDER_EMAIL_DOMAINS]
+
         if not valid_emails:
             continue
-            
+
+        # Prefer addresses on the company's own domain over third-party ones found on the page
+        own_domain = [e for e in valid_emails if e.lower().split("@")[1].removeprefix("www.") == scraped_domain]
+        candidates = own_domain or valid_emails
+
         # Get primary email (prefer recruiter, contact, HR, jobs; else first)
         primary_email = ""
-        for email in valid_emails:
+        for email in candidates:
             el = email.lower()
             if any(k in el for k in ["hr", "career", "job", "recruitment", "hire", "people", "contact"]):
                 primary_email = email
                 break
         if not primary_email:
-            primary_email = valid_emails[0]
+            primary_email = candidates[0]
             
         # Update queue row
         for r in queue:
@@ -314,12 +404,11 @@ def run_generate_letters():
         
     print(f"[Pipeline] Generating cover letters for {len(target_rows)} companies...")
     for r in target_rows:
-        safe_name = r["company_name"].replace(" ", "_").replace("/", "_").replace(".", "")
-        pdf_path = os.path.join(LETTERS_DIR, f"Abraham_Gyamfi_Cover_Letter_{safe_name}.pdf")
+        pdf_path = os.path.join(LETTERS_DIR, applicant.letter_filename(r["company_name"]))
         
         generator.generate_pdf(
             company_name=r["company_name"],
-            role_title="DevOps & Cloud Engineer",
+            role_title=applicant.role_for(r["company_type"]),
             company_type=r["company_type"],
             recipient_name=r["recipient_name"],
             company_address=r["company_address"],
@@ -348,8 +437,8 @@ def run_send_emails():
     failed_count = 0
     
     for i, r in enumerate(to_send):
-        safe_name = r["company_name"].replace(" ", "_").replace("/", "_").replace(".", "")
-        letter_path = os.path.join(LETTERS_DIR, f"Abraham_Gyamfi_Cover_Letter_{safe_name}.pdf")
+        letter_path = os.path.join(LETTERS_DIR, applicant.letter_filename(r["company_name"]))
+        role_title = applicant.role_for(r["company_type"])
         
         # Auto-generate letter if missing
         if not os.path.exists(letter_path):
@@ -358,7 +447,7 @@ def run_send_emails():
                 os.makedirs(LETTERS_DIR)
             generator.generate_pdf(
                 company_name=r["company_name"],
-                role_title="DevOps & Cloud Engineer",
+                role_title=role_title,
                 company_type=r["company_type"],
                 recipient_name=r["recipient_name"],
                 company_address=r["company_address"],
@@ -371,7 +460,7 @@ def run_send_emails():
             company_name=r["company_name"],
             cover_letter_path=letter_path,
             cv_path=CV_PATH,
-            role_title="DevOps & Cloud Engineer"
+            role_title=role_title
         )
         
         if success:
@@ -406,8 +495,7 @@ def log_outreach(row, status):
         if write_header:
             writer.writeheader()
             
-        safe_name = row["company_name"].replace(" ", "_").replace("/", "_").replace(".", "")
-        letter_file = f"Abraham_Gyamfi_Cover_Letter_{safe_name}.pdf"
+        letter_file = applicant.letter_filename(row["company_name"])
         
         writer.writerow({
             "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -422,7 +510,7 @@ def show_status():
     Prints stats of the queue
     """
     queue = load_queue()
-    stats = {"Pending": 0, "Approved": 0, "Sent": 0, "Failed": 0, "Skipped": 0}
+    stats = {"Pending": 0, "Approved": 0, "Sent": 0, "Failed": 0, "Skipped": 0, "Apply-Online": 0}
     no_email = 0
     
     for r in queue:
@@ -437,6 +525,7 @@ def show_status():
     print(f"  Sent:     {stats['Sent']}")
     print(f"  Failed:   {stats['Failed']}")
     print(f"  Skipped:  {stats['Skipped']}")
+    print(f"  Apply-Online: {stats['Apply-Online']} (apply via careers_url; never emailed)")
     print("-----------------------------\n")
 
 def print_help():
@@ -445,8 +534,9 @@ Usage: py outreach_pipeline.py [command]
 
 Commands:
   import    - Import unhyped companies from unhyped_ghana_tech_employers.md
-  search    - Search Exa for new tech companies (args: query [limit])
-              e.g., py outreach_pipeline.py search "fintech companies in Accra Ghana" 10
+  search    - Search Exa for employers (args: query [local|remote], default local)
+              e.g., python outreach_pipeline.py search "fintech companies in Accra Ghana" local
+                    python outreach_pipeline.py search "remote-first startups hiring engineers in Africa" remote
   scrape    - Crawl websites of Pending companies using Apify to harvest contact emails
   generate  - Compile ReportLab cover letter PDFs for companies with emails in the queue
   send      - Send up to 15 emails marked 'Approved' via SMTP with CV & Letter attachments
@@ -464,12 +554,15 @@ if __name__ == "__main__":
         import_unhyped_employers()
     elif cmd == "search":
         q = "tech startup software development company Accra Ghana"
-        lim = 15
+        scope = "local"
         if len(sys.argv) > 2:
             q = sys.argv[2]
         if len(sys.argv) > 3:
-            lim = int(sys.argv[3])
-        run_exa_search(q, lim)
+            scope = sys.argv[3].lower()
+        if scope not in SCOPE_RULES:
+            print(f"Unknown scope '{scope}'. Use 'local' or 'remote'.")
+            sys.exit(1)
+        run_exa_search(q, scope)
     elif cmd == "scrape":
         run_apify_scrape()
     elif cmd == "generate":
