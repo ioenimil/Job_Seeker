@@ -16,5 +16,5 @@ class Config:
     def get(self, key, default=None):
         return self.env.get(key, os.environ.get(key, default))
 
-# Load standard config
-config = Config()
+# Load standard config (OUTREACH_DOTENV overrides the path; the test suite points it at an empty file)
+config = Config(os.environ.get("OUTREACH_DOTENV", ".env"))

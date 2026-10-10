@@ -130,7 +130,9 @@ def migrate(queue_path=None, log_path=None, db_path=None, dry_run=False):
                     evidence_url=evidence_url,
                     careers_url=careers_url,
                     status=status,
-                    created_at=created_at
+                    created_at=created_at,
+                    # Lets 'enrich --status Skipped' revive companies the old scraper gave up on
+                    notes="no_contact_found" if status == "Skipped" and not is_usable_email(r.get("email")) else None,
                 )
                 if created:
                     companies_inserted += 1

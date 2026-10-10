@@ -68,6 +68,29 @@ class TestCheckInbox(unittest.TestCase):
         self.assertEqual(details["company_id"], self.comp_id)
         self.assertEqual(details["contact_id"], self.cont_id)
 
+    def test_classify_dsn_delay_is_not_bounce(self):
+        """Gmail's 'Delivery Status Notification (Delay)' (Action: delayed, 4.x.x) means it is still retrying."""
+        raw_msg = (
+            "From: mailer-daemon@googlemail.com\n"
+            "Subject: Delivery Status Notification (Delay)\n"
+            "Content-Type: multipart/report; report-type=delivery-status; boundary=\"bound\"\n"
+            "\n"
+            "--bound\n"
+            "Content-Type: text/plain\n"
+            "\n"
+            "Delivery to recruiter@acme.com delayed.\n"
+            "--bound\n"
+            "Content-Type: message/delivery-status\n"
+            "\n"
+            "Final-Recipient: rfc822; recruiter@acme.com\n"
+            "Action: delayed\n"
+            "Status: 4.4.1\n"
+            "--bound--\n"
+        )
+        kind, details = classify_message(email.message_from_string(raw_msg), self.conn)
+        self.assertEqual(kind, "auto_reply")
+        self.assertEqual(details["company_id"], self.comp_id)
+
     def test_classify_mailer_daemon_plain_bounce(self):
         msg = EmailMessage()
         msg["From"] = "mailer-daemon@googlemail.com"

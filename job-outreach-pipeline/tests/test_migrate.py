@@ -161,6 +161,12 @@ class TestMigrate(unittest.TestCase):
         delta_contact = db.get_primary_contact(conn, c_delta["id"])
         self.assertEqual(delta_contact["email_kind"], "generic")  # info@
 
+        # Check Company Gamma: Skipped for lack of an email, tagged so enrichment can revive it
+        c_gamma = db.get_company_by_name(conn, "Company Gamma")
+        self.assertEqual(c_gamma["status"], "Skipped")
+        self.assertEqual(c_gamma["notes"], "no_contact_found")
+        self.assertIsNone(c_delta["notes"])
+
         conn.close()
 
     def test_migration_idempotency(self):

@@ -253,6 +253,12 @@ def classify_message(msg, conn=None):
                         details["company_name"] = comp["name"]
                     break
 
+        # A DSN reporting only 'delayed' (4.x.x, still retrying), 'relayed' or 'delivered' is not a bounce;
+        # recording it as one would stop follow-ups to an address that may still accept mail.
+        actions = [str(part.get("Action", "")).strip().lower() for part in msg.walk() if part.get("Action")]
+        if actions and "failed" not in actions:
+            return "auto_reply", details
+
         return "bounce", details
 
     # 1.5. BULK / MARKETING / LIST MAIL FILTER:
