@@ -335,5 +335,108 @@ class TestCheckInbox(unittest.TestCase):
         mock_imap.logout.assert_called_once()
 
 
+    def test_regression_defect1_newsletter_from_company_domain_is_unrelated(self):
+        # Company Acme Corp is in DB. Newsletter from newsletter@acme.com with List-Unsubscribe
+        msg = EmailMessage()
+        msg["From"] = "newsletter@acme.com"
+        msg["Subject"] = "Acme Monthly Tech Digest"
+        msg["List-Unsubscribe"] = "<https://acme.com/unsubscribe>"
+        msg["Message-ID"] = "<digest-oct-2026@acme.com>"
+        msg.set_content("Check out our latest product updates.\nTo stop receiving these, click unsubscribe.")
+
+        kind, details = classify_message(msg, self.conn)
+        self.assertEqual(kind, "unrelated")
+
+        # Also test with Precedence: bulk
+        msg2 = EmailMessage()
+        msg2["From"] = "marketing@acme.com"
+        msg2["Subject"] = "Special Promotion"
+        msg2["Precedence"] = "bulk"
+        msg2["Message-ID"] = "<promo-1@acme.com>"
+        msg2.set_content("Special discount inside. Unsubscribe here.")
+        kind2, _ = classify_message(msg2, self.conn)
+        self.assertEqual(kind2, "unrelated")
+
+    def test_regression_defect1_unassociated_unsubscribe_is_unrelated(self):
+        # Random email from stranger asking to unsubscribe with no matching company or outreach
+        msg = EmailMessage()
+        msg["From"] = "random-person@unknown-domain-xyz.com"
+        msg["Subject"] = "Unsubscribe"
+        msg["Message-ID"] = "<unsub-stranger@unknown.com>"
+        msg.set_content("Please unsubscribe me and remove me from your list.")
+
+        kind, details = classify_message(msg, self.conn)
+        self.assertEqual(kind, "unrelated")
+
+    def test_regression_defect1_quoted_unsubscribe_in_reply_is_reply(self):
+        # Human reply where "unsubscribe" only appears in the quoted original outreach, not in new text
+        msg = EmailMessage()
+        msg["From"] = "Jane Doe <recruiter@acme.com>"
+        msg["Subject"] = "Re: Platform Engineer Application"
+        msg["Message-ID"] = "<positive-reply@acme.com>"
+        msg.set_content(
+            "Hi Isaac,\n\n"
+            "We reviewed your profile and would love to schedule a technical interview next Tuesday!\n\n"
+            "On Wed, Oct 7, 2026 at 10:00 AM Isaac <ioenimil@gmail.com> wrote:\n"
+            "> Dear Recruiting Team,\n"
+            "> ...\n"
+            "> List-Unsubscribe: <mailto:ioenimil@gmail.com?subject=unsubscribe>\n"
+        )
+
+        kind, details = classify_message(msg, self.conn)
+        self.assertEqual(kind, "reply")
+        self.assertEqual(details["company_id"], self.comp_id)
+
+    @patch("imaplib.IMAP4_SSL")
+    def test_regression_defect2_atomic_transaction_rollback(self, mock_imap_cls):
+        # Verify that if an error occurs during status update, the inbox event is rolled back atomically
+        mock_imap = MagicMock()
+        mock_imap_cls.return_value = mock_imap
+        mock_imap.select.return_value = ("OK", [b"1"])
+        mock_imap.search.return_value = ("OK", [b"999"])
+
+        reply_msg = EmailMessage()
+        reply_msg["From"] = "Jane <recruiter@acme.com>"
+        reply_msg["Subject"] = "Re: Application"
+        reply_msg["Message-ID"] = "<atomic-test-msg@acme.com>"
+        reply_msg.set_content("Yes, let's connect!")
+        mock_imap.fetch.return_value = ("OK", [(b"999 (BODY[] {123}", reply_msg.as_bytes())])
+
+        # Simulate failure during set_company_status on first run
+        with patch("config.config.get", side_effect=lambda k: "val" if k in ("SENDER_EMAIL", "GMAIL_APP_PASSWORD") else None):
+            with patch("db.set_company_status", side_effect=RuntimeError("Simulated DB disk failure")):
+                with self.assertRaises(RuntimeError):
+                    run_check(conn=self.conn, dry_run=False, backfill=False)
+
+        # The inbox event must NOT exist in the database (rolled back)
+        event = self.conn.execute(
+            "SELECT * FROM inbox_events WHERE imap_message_id = '<atomic-test-msg@acme.com>'"
+        ).fetchone()
+        self.assertIsNone(event)
+        self.assertEqual(db.get_company(self.conn, self.comp_id)["status"], "Sent")
+
+        # Second run without error: runs cleanly and records both event and status
+        with patch("config.config.get", side_effect=lambda k: "val" if k in ("SENDER_EMAIL", "GMAIL_APP_PASSWORD") else None):
+            summary = run_check(conn=self.conn, dry_run=False, backfill=False)
+
+        self.assertEqual(summary["events"], 1)
+        self.assertEqual(db.get_company(self.conn, self.comp_id)["status"], "Replied")
+        event = self.conn.execute(
+            "SELECT * FROM inbox_events WHERE imap_message_id = '<atomic-test-msg@acme.com>'"
+        ).fetchone()
+        self.assertIsNotNone(event)
+
+    def test_regression_defect3_ignore_sender_email(self):
+        msg = EmailMessage()
+        msg["From"] = "Self Copy <my-outreach@gmail.com>"
+        msg["Subject"] = "Test email"
+        msg["Message-ID"] = "<self-copy-1@gmail.com>"
+        msg.set_content("This is a copy of an email I sent.")
+
+        with patch("config.config.get", return_value="my-outreach@gmail.com"):
+            kind, details = classify_message(msg, self.conn)
+            self.assertEqual(kind, "unrelated")
+
+
 if __name__ == "__main__":
     unittest.main()

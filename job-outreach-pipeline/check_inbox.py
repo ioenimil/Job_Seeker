@@ -51,6 +51,30 @@ def extract_body_and_snippet(msg):
     return full_body, snippet
 
 
+def extract_unquoted_text(body):
+    """
+    Extracts only new text from email body, excluding:
+    - lines starting with '>'
+    - any lines after a quote intro like 'On ... wrote:', '--- Original Message ---', or 'From: ... Sent: ...'
+    """
+    lines = body.splitlines()
+    unquoted_lines = []
+
+    for line in lines:
+        stripped = line.strip()
+        if re.search(r'on\s+.+wrote\s*:', stripped, re.IGNORECASE):
+            break
+        if re.search(r'---+.*original message', stripped, re.IGNORECASE):
+            break
+        if re.search(r'^from:\s+.+sent:', stripped, re.IGNORECASE):
+            break
+        if stripped.startswith(">"):
+            continue
+        unquoted_lines.append(line)
+
+    return "\n".join(unquoted_lines).strip()
+
+
 def parse_message_date(msg):
     """Parse Date header to YYYY-MM-DD HH:MM:SS format."""
     date_str = msg.get("Date")
@@ -157,6 +181,13 @@ def classify_message(msg, conn=None):
         "failed_recipients": []
     }
 
+    # 0. IGNORE OWN MAIL (SENDER_EMAIL): e.g. copies or self-sent tests
+    sender_email_cfg = config.get("SENDER_EMAIL")
+    if sender_email_cfg:
+        sender_email_clean = email.utils.parseaddr(sender_email_cfg)[1].lower().strip()
+        if from_email and from_email == sender_email_clean:
+            return "unrelated", details
+
     # 1. BOUNCE:
     # - From mailer-daemon@ or postmaster@
     # - OR multipart/report with report-type=delivery-status
@@ -224,6 +255,29 @@ def classify_message(msg, conn=None):
 
         return "bounce", details
 
+    # 1.5. BULK / MARKETING / LIST MAIL FILTER:
+    # Treat bulk/list mail as 'unrelated' (List-Id, List-Unsubscribe, or Precedence: bulk/list/junk)
+    # UNLESS In-Reply-To/References matches one of our stored outreach message_ids
+    has_list_header = bool(msg.get("List-Id") or msg.get("List-Unsubscribe"))
+    precedence_bulk = msg.get("Precedence", "").strip().lower() in ("bulk", "list", "junk")
+
+    if has_list_header or precedence_bulk:
+        matches_stored_outreach = False
+        if conn:
+            in_reply_to = msg.get("In-Reply-To", "")
+            references = msg.get("References", "")
+            headers_combined = f"{in_reply_to} {references}"
+            mids = re.findall(r'<[^>]+>', headers_combined)
+            if not mids and (in_reply_to.strip() or references.strip()):
+                mids = [in_reply_to.strip()] if in_reply_to.strip() else [references.strip()]
+            for mid in mids:
+                if conn.execute("SELECT 1 FROM outreaches WHERE message_id = ?", (mid.strip(),)).fetchone():
+                    matches_stored_outreach = True
+                    break
+
+        if not matches_stored_outreach:
+            return "unrelated", details
+
     # 2. AUTO-REPLY:
     # - Auto-Submitted other than 'no'
     # - X-Autoreply / X-Autorespond
@@ -250,16 +304,19 @@ def classify_message(msg, conn=None):
         return "auto_reply", details
 
     # 3. UNSUBSCRIBE:
-    # Human message whose text asks to be removed
+    # Human message whose UNQUOTED text asks to be removed, AND associated with company/outreach
     unsub_phrases = ["unsubscribe", "remove me", "stop emailing", "not interested"]
-    body_lower = full_body.lower()
-    if any(phrase in body_lower for phrase in unsub_phrases):
+    unquoted_body_lower = extract_unquoted_text(full_body).lower()
+    if any(phrase in unquoted_body_lower for phrase in unsub_phrases):
         comp_id, cont_id, out_id, comp_name = resolve_associations(conn, from_email, msg)
-        details["company_id"] = comp_id
-        details["contact_id"] = cont_id
-        details["outreach_id"] = out_id
-        details["company_name"] = comp_name
-        return "unsubscribe", details
+        if comp_id is not None or out_id is not None:
+            details["company_id"] = comp_id
+            details["contact_id"] = cont_id
+            details["outreach_id"] = out_id
+            details["company_name"] = comp_name
+            return "unsubscribe", details
+        else:
+            return "unrelated", details
 
     # 4. REPLY:
     # Sender matches contact email, OR company domain, OR In-Reply-To/References matches outreach message_id
@@ -489,70 +546,73 @@ def run_check(conn=None, days=None, dry_run=False, backfill=True):
                     counts["unsubscribes"] += 1
                 continue
 
-            # Live run: record inbox event (idempotent on imap_message_id)
-            event_id, created = db.record_inbox_event(
-                conn,
-                kind=kind,
-                from_email=details["from_email"],
-                imap_message_id=details["imap_message_id"],
-                subject=details["subject"],
-                received_at=details["received_at"],
-                snippet=details["snippet"],
-                company_id=details.get("company_id"),
-                contact_id=details.get("contact_id"),
-                outreach_id=details.get("outreach_id")
-            )
+            # Live run: record inbox event and update status atomically in one transaction
+            with db.transaction(conn):
+                event_id, created = db.record_inbox_event(
+                    conn,
+                    kind=kind,
+                    from_email=details["from_email"],
+                    imap_message_id=details["imap_message_id"],
+                    subject=details["subject"],
+                    received_at=details["received_at"],
+                    snippet=details["snippet"],
+                    company_id=details.get("company_id"),
+                    contact_id=details.get("contact_id"),
+                    outreach_id=details.get("outreach_id")
+                )
 
-            if not created:
-                # Already processed previously
-                continue
+                if not created:
+                    # Already processed previously
+                    continue
 
-            counts["events"] += 1
+                counts["events"] += 1
 
-            if kind == "bounce":
-                counts["bounces"] += 1
-                contact_id = details.get("contact_id")
-                if contact_id:
-                    conn.execute(
-                        "UPDATE contacts SET verification_status = 'invalid', updated_at = ? WHERE id = ?",
-                        (db.now_iso(), contact_id)
-                    )
-                company_id = details.get("company_id")
-                if company_id:
-                    comp = db.get_company(conn, company_id)
-                    if comp and comp["status"] not in ("Replied", "Bounced"):
-                        db.set_company_status(conn, company_id, "Bounced")
+                if kind == "bounce":
+                    counts["bounces"] += 1
+                    contact_id = details.get("contact_id")
+                    if contact_id:
+                        conn.execute(
+                            "UPDATE contacts SET verification_status = 'invalid', updated_at = ? WHERE id = ?",
+                            (db.now_iso(), contact_id)
+                        )
+                    company_id = details.get("company_id")
+                    if company_id:
+                        comp = db.get_company(conn, company_id)
+                        if comp and comp["status"] not in ("Replied", "Bounced"):
+                            db.set_company_status(conn, company_id, "Bounced")
 
-            elif kind == "auto_reply":
-                counts["auto_replies"] += 1
-                # Record event only, no status change
+                elif kind == "auto_reply":
+                    counts["auto_replies"] += 1
+                    # Record event only, no status change
 
-            elif kind == "unsubscribe":
-                counts["unsubscribes"] += 1
-                company_id = details.get("company_id")
-                if company_id:
-                    comp = db.get_company(conn, company_id)
-                    if comp:
-                        existing_notes = comp["notes"] or ""
-                        if "unsubscribe" not in existing_notes.lower():
-                            new_notes = f"{existing_notes}; unsubscribe".strip("; ")
-                        else:
-                            new_notes = existing_notes
-                        db.update_company(conn, company_id, notes=new_notes)
-                        if comp["status"] not in ("Replied", "Bounced"):
-                            db.set_company_status(conn, company_id, "Replied")
+                elif kind == "unsubscribe":
+                    counts["unsubscribes"] += 1
+                    company_id = details.get("company_id")
+                    if company_id:
+                        comp = db.get_company(conn, company_id)
+                        if comp:
+                            existing_notes = comp["notes"] or ""
+                            if "unsubscribe" not in existing_notes.lower():
+                                new_notes = f"{existing_notes}; unsubscribe".strip("; ")
+                            else:
+                                new_notes = existing_notes
+                            db.update_company(conn, company_id, notes=new_notes)
+                            if comp["status"] not in ("Replied", "Bounced"):
+                                db.set_company_status(conn, company_id, "Replied")
 
-            elif kind == "reply":
-                counts["replies"] += 1
-                company_id = details.get("company_id")
+                elif kind == "reply":
+                    counts["replies"] += 1
+                    company_id = details.get("company_id")
+                    comp_name = details.get("company_name")
+                    if company_id:
+                        comp = db.get_company(conn, company_id)
+                        if comp:
+                            comp_name = comp_name or comp["name"]
+                            if comp["status"] not in ("Replied", "Bounced"):
+                                db.set_company_status(conn, company_id, "Replied")
+
+            if kind == "reply":
                 comp_name = details.get("company_name")
-                if company_id:
-                    comp = db.get_company(conn, company_id)
-                    if comp:
-                        comp_name = comp_name or comp["name"]
-                        if comp["status"] not in ("Replied", "Bounced"):
-                            db.set_company_status(conn, company_id, "Replied")
-
                 print(f"\n{'='*60}")
                 print(f"[REPLY ALERT] Company: {comp_name or 'Unknown'}")
                 print(f"              Sender:  {details['from_email']}")
