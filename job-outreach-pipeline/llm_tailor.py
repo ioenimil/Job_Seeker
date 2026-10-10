@@ -27,11 +27,12 @@ def strip_control_and_html(text: str) -> str:
 
 def extract_numbers_metrics(text: str) -> list[str]:
     """
-    Extract numbers, percentages, metrics like 74%, 96%, #1, 1st, 10, etc.
+    Extract numbers, percentages, metrics like 74%, 96%, #1, 1st, 10, 2M, 100k, etc.
     """
-    # Matches patterns like 74%, #1, 1st, 2nd, 10, etc.
-    matches = re.findall(r"(?:#\d+|\b\d+(?:st|nd|rd|th)?%?|\b\d+/\d+)", text, re.IGNORECASE)
+    # Matches patterns like 74%, #1, 1st, 2nd, 10, 2M, 100k, 1/2, etc.
+    matches = re.findall(r"(?:#\d+|\b\d+(?:[.,]\d+)?(?:st|nd|rd|th|[kmbKMB])?%?|\b\d+/\d+)", text, re.IGNORECASE)
     return [m.lower() for m in matches]
+
 
 
 KNOWN_TECH_WORDS = {
@@ -47,24 +48,45 @@ KNOWN_TECH_WORDS = {
 }
 
 
-def extract_tech_and_proper_nouns(text: str) -> list[str]:
+def extract_tech_and_proper_nouns(text: str, is_title: bool = False) -> list[str]:
     """
     Extract technology/proper-noun tokens:
     capitalised words, CamelCase, tokens with digits, known tech words.
+    Treats a capitalised token at the start of a sentence as a proper noun
+    only if it is in KNOWN_TECH_WORDS, CamelCase, contains digits, or is all-caps.
+    When is_title is True, all words in the title are checked under the same rule
+    (only recognized as tech/proper noun if KNOWN_TECH_WORDS, CamelCase, digits, or all-caps).
     """
     tokens = []
-    # Tokenize words, keeping hyphens or slashes if inside a word
-    words = re.findall(r"[A-Za-z0-9]+(?:[-_/][A-Za-z0-9]+)*", text)
-    for w in words:
-        w_lower = w.lower()
-        is_cap = w[0].isupper() and not w.isupper()
-        is_all_cap = w.isupper() and len(w) > 1
-        is_camel = bool(re.search(r"[a-z][A-Z]", w))
-        has_digit = any(c.isdigit() for c in w)
-        is_tech = w_lower in KNOWN_TECH_WORDS
-        if is_cap or is_all_cap or is_camel or has_digit or is_tech:
-            tokens.append(w_lower)
+    # Split text into sentences/lines
+    sentences = [s.strip() for s in re.split(r'(?:[.!?]+|\n+)\s*', text) if s.strip()]
+    for sent in sentences:
+        words = re.findall(r"[A-Za-z0-9]+(?:[-_/][A-Za-z0-9]+)*", sent)
+        for idx, w in enumerate(words):
+            w_lower = w.lower()
+            is_all_cap = w.isupper() and len(w) > 1
+            is_camel = bool(re.search(r"[a-z][A-Z]", w))
+            has_digit = any(c.isdigit() for c in w)
+            is_tech = w_lower in KNOWN_TECH_WORDS
+            is_cap = w[0].isupper() and not w.isupper()
+
+            if is_title or idx == 0:
+                if is_tech or is_camel or has_digit or is_all_cap:
+                    tokens.append(w_lower)
+            else:
+                if is_cap or is_all_cap or is_camel or has_digit or is_tech:
+                    tokens.append(w_lower)
+
+            # Also check subwords if w has hyphens or slashes (e.g. 'Kafka-based' -> 'kafka')
+            if "-" in w or "/" in w or "_" in w:
+                for subw in re.findall(r"[A-Za-z0-9]+", w):
+                    sub_lower = subw.lower()
+                    if sub_lower in KNOWN_TECH_WORDS or (subw.isupper() and len(subw) > 1) or any(c.isdigit() for c in subw):
+                        if sub_lower not in tokens:
+                            tokens.append(sub_lower)
     return tokens
+
+
 
 
 
@@ -113,9 +135,10 @@ def validate_pitch(pitch: dict, company) -> list[str]:
     - exactly 3 bullets with distinct fact_ids that exist in ACHIEVEMENTS
     - every number/percentage/metric in a bullet appears in its source fact text
     - every technology/proper-noun token in a bullet appears in its source fact text (case-insensitive)
+    - bullet titles validated against source fact title + text
     - the company's stack may be mentioned in the LEAD only, never claimed as candidate experience in a bullet
-    - no certification/degree/employer words unless present in FACT_SHEET/source
-    - lead may only reference the company name and terms present in summary
+    - no certification/degree/employer words unless present in FACT_SHEET/source (word boundaries)
+    - lead may only reference the company name and terms present in summary + website domain
     - length caps (bullet <= 320 chars, lead <= 300)
     Returns list of error messages (empty list if valid).
     """
@@ -157,34 +180,37 @@ def validate_pitch(pitch: dict, company) -> list[str]:
             errors.append(f"Bullet {idx+1} exceeds 320 characters ({len(text)} chars).")
 
         source_ach = ach_map[fid]
+        source_title = source_ach.get("title", "")
         source_text = source_ach["text"]
-        source_lower = source_text.lower()
+        source_combined = f"{source_title} {source_text}".lower()
 
-        # Check metrics/numbers
+        # Check metrics/numbers in bullet text
         bullet_metrics = extract_numbers_metrics(text)
         source_metrics = set(extract_numbers_metrics(source_text))
         for m in bullet_metrics:
-            if m not in source_metrics and m not in source_lower:
+            if m not in source_metrics and m not in source_combined:
                 errors.append(f"Bullet {idx+1} contains metric/number '{m}' not in source fact '{fid}'.")
 
-        # Check tech and proper noun tokens
-        # Common English stop words / sentence starters to not treat as proper nouns
-        ignore_words = {
-            "i", "at", "my", "we", "the", "in", "with", "and", "to", "for", "on", "a", "an",
-            "as", "by", "of", "from", "into", "across", "over", "using", "built", "designed",
-            "deployed", "architected", "operated", "won", "engineered", "secured", "integrated",
-            "provisioned", "exceeded", "running", "scaling", "raising", "reducing", "cutting",
-            "helping", "keeping", "delivering", "right-sizing", "implement", "run", "design"
-        }
+        # Check tech and proper noun tokens in bullet text
         b_tokens = extract_tech_and_proper_nouns(text)
         for tok in b_tokens:
-            if tok in ignore_words:
-                continue
-            if tok not in source_lower:
+            if tok not in source_combined:
                 errors.append(f"Bullet {idx+1} claims technology/token '{tok}' not in source fact '{fid}'.")
 
+        # Validate bullet title against source fact title + text
+        title_metrics = extract_numbers_metrics(title)
+        for m in title_metrics:
+            if m not in source_metrics and m not in source_combined:
+                errors.append(f"Bullet {idx+1} title contains metric/number '{m}' not in source fact '{fid}'.")
+
+        title_tokens = extract_tech_and_proper_nouns(title, is_title=True)
+        for tok in title_tokens:
+            if tok not in source_combined:
+                errors.append(f"Bullet {idx+1} title claims technology/token '{tok}' not in source fact '{fid}'.")
+
+
     # Check certification/degree/employer words across all bullets
-    # Only allowed if present in FACT_SHEET or source fact
+    # Only allowed if present in FACT_SHEET or source fact, using word boundaries
     fact_sheet_str = json.dumps(applicant.FACT_SHEET).lower()
     restricted_terms = [
         "bachelor", "master", "phd", "degree", "certified", "certification",
@@ -197,53 +223,44 @@ def validate_pitch(pitch: dict, company) -> list[str]:
         fid = b.get("fact_id")
         source_text = ach_map.get(fid, {}).get("text", "").lower()
         combined_source = (source_text + " " + fact_sheet_str).lower()
-        b_lower = b.get("text", "").lower()
+        combined_bullet = (b.get("title", "") + " " + b.get("text", "")).lower()
         for term in restricted_terms:
-            if term in b_lower and term not in combined_source:
-                errors.append(f"Bullet {idx+1} mentions restricted term '{term}' not present in fact sheet or source.")
+            pattern = rf"\b{re.escape(term)}\b"
+            if re.search(pattern, combined_bullet, re.IGNORECASE):
+                if not re.search(pattern, combined_source, re.IGNORECASE):
+                    errors.append(f"Bullet {idx+1} mentions restricted term '{term}' not present in fact sheet or source.")
 
-    # Validate lead: lead may only reference the company name and terms present in summary
+    # Validate lead:
+    # Always validate lead's tech/proper-noun/number tokens against summary + company name + website domain.
+    # Empty summary means only the company name (and website domain) may appear.
     company_name = ""
     summary = ""
+    website = ""
     if isinstance(company, (dict, db.sqlite3.Row)):
         company_name = company.get("name", "") if isinstance(company, dict) else (company["name"] if "name" in company.keys() else "")
         summary = company.get("summary", "") if isinstance(company, dict) else (company["summary"] if "summary" in company.keys() else "")
+        website = company.get("website", "") if isinstance(company, dict) else (company["website"] if "website" in company.keys() else "")
     elif company:
         company_name = getattr(company, "name", "")
         summary = getattr(company, "summary", "")
+        website = getattr(company, "website", "")
 
-    # Check lead terms
-    # "lead may only reference the company name and terms present in summary"
+    domain = db.bare_domain(website) if website else ""
+    allowed_lead_context = f"{summary} {company_name} {domain}".lower()
+
     lead_clean = strip_control_and_html(lead)
-    common_connectives = {
-        "i", "at", "my", "we", "the", "in", "with", "and", "to", "for", "on", "a", "an",
-        "as", "by", "of", "from", "into", "across", "over", "using", "built", "designed",
-        "deployed", "architected", "operated", "won", "engineered", "secured", "integrated",
-        "provisioned", "exceeded", "running", "scaling", "raising", "reducing", "cutting",
-        "helping", "keeping", "delivering", "right-sizing", "implement", "run", "design",
-        "is", "are", "was", "were", "be", "being", "been", "that", "this", "these", "those",
-        "it", "its", "their", "our", "your", "what", "which", "who", "whom", "whose", "how",
-        "when", "where", "why", "both", "all", "any", "some", "more", "most", "other",
-        "such", "no", "nor", "not", "only", "own", "same", "so", "than", "too", "very",
-        "can", "will", "just", "should", "now", "builds", "makes", "creates", "develops",
-        "offers", "provides", "delivers", "focuses", "helps", "works", "powers", "operates",
-        "systems", "system", "products", "product", "platform", "platforms", "services",
-        "service", "technology", "technologies", "engineering", "team", "teams", "tools",
-        "solution", "solutions", "applications", "application", "software", "infrastructure"
-    }
+    lead_tokens = extract_tech_and_proper_nouns(lead_clean)
+    for tok in lead_tokens:
+        if tok not in allowed_lead_context:
+            errors.append(f"Lead references technology/token '{tok}' not found in company summary or company name.")
 
-    if summary:
-        summary_lower = summary.lower()
-        cname_lower = company_name.lower()
-        lead_words = re.findall(r"[A-Za-z0-9]+(?:[-_][A-Za-z0-9]+)*", lead_clean)
-        for w in lead_words:
-            w_lower = w.lower()
-            if w_lower in common_connectives:
-                continue
-            if w_lower not in summary_lower and w_lower not in cname_lower:
-                errors.append(f"Lead references term '{w_lower}' not found in company summary or company name.")
+    lead_numbers = extract_numbers_metrics(lead_clean)
+    for num in lead_numbers:
+        if num not in allowed_lead_context:
+            errors.append(f"Lead references metric/number '{num}' not found in company summary or company name.")
 
     return errors
+
 
 
 

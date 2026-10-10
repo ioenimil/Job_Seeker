@@ -190,10 +190,10 @@ class TestLLMTailor(unittest.TestCase):
         self.assertTrue(any("unknown fact_id" in e for e in errors_unk))
 
     def test_validate_pitch_lead_rejects_invented_terms(self):
-        """Lead cannot hallucinate high-entropy company terms not in summary."""
+        """Lead cannot hallucinate tech tokens or metrics not in summary."""
         company = {"name": "Acme", "summary": "Online grocery retail and fresh food logistics."}
         pitch = {
-            "lead": "Acme specializes in autonomous drone defense cybersecurity operations.",
+            "lead": "Acme operates a Kafka and Kubernetes payments cluster serving 2M users.",
             "bullets": [
                 {
                     "fact_id": "event-driven-financial-systems",
@@ -214,6 +214,7 @@ class TestLLMTailor(unittest.TestCase):
         }
         errors = validate_pitch(pitch, company)
         self.assertTrue(any("not found in company summary" in e for e in errors))
+
 
     @patch.dict(os.environ, {"LLM_PROVIDER": "none"})
     def test_provider_none_makes_no_network_calls(self):
@@ -275,6 +276,112 @@ class TestLLMTailor(unittest.TestCase):
             ensure_pitch(self.conn, company_id, regenerate=True)
             mock_build.assert_called_once()
 
+    def test_regression_hole1_empty_summary_rejects_hallucinated_lead(self):
+        """HOLE 1: Empty summary rejects lead containing tech/metric tokens not in company name/domain."""
+        company = {"name": "Acme Corp", "website": "https://acme.com", "summary": ""}
+        pitch = {
+            "lead": "I am interested in your Kafka-based payments platform serving 2M users at Acme Corp.",
+            "bullets": [
+                {
+                    "fact_id": "event-driven-financial-systems",
+                    "title": "Remittance Platform",
+                    "text": "I won 1st place at the KNUST Technology Week Hackathon with a containerized remittance platform using Kafka for event streaming and immutable audit logging."
+                },
+                {
+                    "fact_id": "secure-cicd",
+                    "title": "Secure CI/CD",
+                    "text": "I engineered a cost-optimized Jenkins pipeline with auto-scaling EC2 Spot agents for 10 developers with Keycloak SSO across 5 cross-functional teams."
+                },
+                {
+                    "fact_id": "production-platform",
+                    "title": "Production Platform",
+                    "text": "I run containerized workloads on production Kubernetes with GitOps delivery via Argo CD, secrets from HashiCorp Vault, and Prometheus, Loki, Grafana, and Jaeger observability."
+                }
+            ]
+        }
+        errors = validate_pitch(pitch, company)
+        self.assertTrue(any("Lead references technology/token 'kafka'" in e for e in errors))
+        self.assertTrue(any("Lead references metric/number '2m'" in e for e in errors))
+
+    def test_regression_hole2_bullet_title_invented_tech_rejected(self):
+        """HOLE 2: Bullet title with tech/proper noun not in source fact is rejected."""
+        company = {"name": "Acme AI", "summary": "AI platform"}
+        pitch = {
+            "lead": "Acme AI builds modern AI platform technology.",
+            "bullets": [
+                {
+                    "fact_id": "applied-ai-delivery",
+                    "title": "Kafka at Scale",  # applied-ai-delivery does not mention Kafka
+                    "text": "I built an end-to-end RAG system with FastAPI and the Zilliz vector store, grounding answers in a client's verified documents."
+                },
+                {
+                    "fact_id": "secure-cicd",
+                    "title": "Secure CI/CD",
+                    "text": "I engineered a cost-optimized Jenkins pipeline with auto-scaling EC2 Spot agents for 10 developers with Keycloak SSO across 5 cross-functional teams."
+                },
+                {
+                    "fact_id": "production-platform",
+                    "title": "Production Platform",
+                    "text": "I run containerized workloads on production Kubernetes with GitOps delivery via Argo CD, secrets from HashiCorp Vault, and Prometheus, Loki, Grafana, and Jaeger observability."
+                }
+            ]
+        }
+        errors = validate_pitch(pitch, company)
+        self.assertTrue(any("title claims technology/token 'kafka'" in e for e in errors))
+
+    def test_regression_precision1_enthusiastic_lead_with_ordinary_words(self):
+        """PRECISION 1: Enthusiastic lead with non-summary ordinary words passes when tech tokens match."""
+        company = {"name": "Linear", "website": "https://linear.app", "summary": "Issue tracking tool for modern software teams."}
+        pitch = {
+            "lead": "I have been genuinely impressed and deeply excited by Linear's mission and craft in building issue tracking software.",
+            "bullets": [
+                {
+                    "fact_id": "event-driven-financial-systems",
+                    "title": "Event-Driven Financial Systems",
+                    "text": "I won 1st place at the KNUST Technology Week Hackathon with a containerized remittance platform using Kafka for event streaming and immutable audit logging."
+                },
+                {
+                    "fact_id": "secure-cicd",
+                    "title": "Secure CI/CD",
+                    "text": "I engineered a cost-optimized Jenkins pipeline with auto-scaling EC2 Spot agents for 10 developers with Keycloak SSO across 5 cross-functional teams."
+                },
+                {
+                    "fact_id": "production-platform",
+                    "title": "Production Platform",
+                    "text": "I run containerized workloads on production Kubernetes with GitOps delivery via Argo CD, secrets from HashiCorp Vault, and Prometheus, Loki, Grafana, and Jaeger observability."
+                }
+            ]
+        }
+        errors = validate_pitch(pitch, company)
+        self.assertEqual(errors, [])
+
+    def test_regression_precision2_sentence_initial_verbs_and_substring_safety(self):
+        """PRECISION 2: Capitalised sentence-initial verbs pass, and substrings like 'commit' or 'metadata' do not trigger restricted terms."""
+        company = {"name": "Acme Corp", "website": "https://acme.com", "summary": "Software development platform."}
+        pitch = {
+            "lead": "Acme Corp builds software tools.",
+            "bullets": [
+                {
+                    "fact_id": "infrastructure-as-code",
+                    "title": "Infrastructure Velocity",
+                    "text": "Shipped scalable AWS environments with Terraform and Docker. Delivered modular application layers to commit code securely without hitting a limit."
+                },
+                {
+                    "fact_id": "applied-ai-delivery",
+                    "title": "Applied AI Delivery",
+                    "text": "Created an end-to-end RAG system with FastAPI and the Zilliz vector store, extracting metadata from verified client documents."
+                },
+                {
+                    "fact_id": "production-platform",
+                    "title": "Production Platform",
+                    "text": "Operated containerized workloads on production Kubernetes with GitOps delivery via Argo CD, secrets from HashiCorp Vault, and Prometheus, Loki, Grafana, and Jaeger observability."
+                }
+            ]
+        }
+        errors = validate_pitch(pitch, company)
+        self.assertEqual(errors, [])
+
 
 if __name__ == "__main__":
     unittest.main()
+
