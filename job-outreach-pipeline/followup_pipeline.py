@@ -1,193 +1,154 @@
 import os
-import csv
 import sys
 import time
 import random
-import smtplib
-import ssl
-from email.message import EmailMessage
-from datetime import datetime, timedelta
-from config import config
 import applicant
+from email_sender import EmailSender
+import check_inbox
+import db
 
-# Load .env
-if os.path.exists(".env"):
-    with open(".env", "r", encoding="utf-8") as f:
-        for line in f:
-            line = line.strip()
-            if line and not line.startswith("#") and "=" in line:
-                key, val = line.split("=", 1)
-                os.environ[key.strip()] = val.strip()
 
-QUEUE_FILE = "outreach_queue.csv"
-CV_PATH = applicant.CV_PATH
+def run_followups(conn=None, limit=10, dry_run=True, check_inbox_first=True):
+    """
+    Runs the follow-up pipeline on top of SQLite.
+    Fetches candidates via db.followup_candidates(conn, min_days=6).
+    In live mode:
+      - Runs check_inbox.run_check first (aborts live run if IMAP check fails)
+      - Sends follow-up email with threading headers and CV attachment
+      - Records send in SQLite with db.record_send (one transaction per send)
+      - Waits 30-60s between sends
+    In dry-run mode:
+      - Prints recipient, subject, and threading header status
+    Returns summary dict: {"sent": int, "candidates": int, "aborted": bool}
+    """
+    close_conn = False
+    if conn is None:
+        conn = db.connect()
+        close_conn = True
 
-# Exclusions: add email domains that bounced and company names that already replied
-BOUNCED_DOMAINS = []
-
-REPLIED_COMPANIES = []
-
-def load_queue():
-    if not os.path.exists(QUEUE_FILE):
-        return []
-    with open(QUEUE_FILE, "r", encoding="utf-8", newline="") as f:
-        return list(csv.DictReader(f))
-
-def save_queue(queue, fields):
-    with open(QUEUE_FILE, "w", encoding="utf-8", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=fields)
-        writer.writeheader()
-        writer.writerows(queue)
-
-def get_followup_candidates():
-    queue = load_queue()
-    candidates = []
-    
-    # We follow up on emails sent 6 or more days ago
-    today = datetime.now()
-    threshold_date = today - timedelta(days=6)
-    
-    for r in queue:
-        # Check basic eligibility
-        if r["status"] != "Sent" or not r["date_sent"]:
-            continue
-            
-        comp_name_lower = r["company_name"].lower().strip()
-        email_lower = r["email"].lower().strip()
-        
-        # Check active replies exclusion
-        if any(rep in comp_name_lower for rep in REPLIED_COMPANIES):
-            continue
-            
-        # Check bounced domains exclusion
-        if any(b in email_lower for b in BOUNCED_DOMAINS):
-            continue
-            
-        # Parse date_sent
-        date_str = r["date_sent"].split()[0]
-        try:
-            sent_date = datetime.strptime(date_str, "%Y-%m-%d")
-            if sent_date <= threshold_date:
-                candidates.append(r)
-        except Exception:
-            pass
-            
-    return candidates
-
-def send_followup_email(sender_email, password, r, dry_run=False):
-    recipient_email = r["email"]
-    company_name = r["company_name"]
-    recipient_name = r["recipient_name"]
-    company_type = r["company_type"]
-    
-    msg = EmailMessage()
-    msg["From"] = sender_email
-    msg["To"] = recipient_email
-    role_title = applicant.role_for(company_type)
-    original_subject = applicant.subject(role_title)
-    msg["Subject"] = f"Re: {original_subject}"
-
-    body_text = (
-        f"{applicant.salutation(recipient_name)},\n\n"
-        f"I hope this email finds you well.\n\n"
-        f"I am writing to follow up briefly on my application for {role_title} opportunities at {company_name} sent last week.\n\n"
-        f"I remain very interested in the work your team is doing, and wanted to check if there are any updates or if you would be open to a brief 10-minute call to connect. "
-        f"I would be glad to share how my experience with platform engineering on AWS and Kubernetes, GitOps delivery, observability, and shipping applied AI systems for clients can support your team's goals.\n\n"
-        f"I have attached my updated CV for your convenience. Please let me know if there is any other information I can provide.\n\n"
-        f"Thank you for your time and consideration.\n\n"
-        f"Best regards,\n\n"
-        + applicant.signature()
-    )
-
-    # Append original email context to simulate thread reply
-    original_date = r["date_sent"]
-    body_text += (
-        f"\n\n---\n"
-        f"Original Message:\n"
-        f"From: {sender_email}\n"
-        f"Sent: {original_date}\n"
-        f"Subject: {original_subject}\n\n"
-        + applicant.outreach_body(company_name, role_title)
-    )
-    
-    msg.set_content(body_text)
-    
-    # Attach CV
-    if os.path.exists(CV_PATH):
-        with open(CV_PATH, "rb") as f:
-            file_data = f.read()
-            file_name = os.path.basename(CV_PATH)
-        msg.add_attachment(file_data, maintype="application", subtype="pdf", filename=file_name)
-    else:
-        print(f"Error: CV file not found at {CV_PATH}")
-        return False
-        
-    if dry_run:
-        print(f"[DRY-RUN] Would send follow-up to {recipient_email}")
-        return True
-        
-    # Send email
-    context = ssl.create_default_context()
     try:
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context) as smtp:
-            smtp.login(sender_email, password)
-            smtp.sendmail(sender_email, recipient_email, msg.as_string())
-        print(f"Successfully sent follow-up to {recipient_email}")
-        return True
-    except Exception as e:
-        print(f"SMTP Error sending follow-up to {recipient_email}: {e}")
-        return False
+        # 1. Check inbox first if requested
+        if check_inbox_first:
+            try:
+                print("[Followup] Checking inbox for recent replies/bounces...")
+                check_inbox.run_check(conn=conn, dry_run=dry_run)
+            except Exception as e:
+                if dry_run:
+                    print(f"[Followup] Warning: Inbox check failed during dry-run: {e}. Continuing dry-run.")
+                else:
+                    print(f"[Followup] ERROR: Inbox check failed during live run: {e}. Aborting follow-up run.")
+                    return {"aborted": True, "sent": 0, "error": str(e), "candidates": 0}
 
-def run_followups(limit=10, dry_run=False):
-    sender_email = config.get("SENDER_EMAIL")
-    password = config.get("GMAIL_APP_PASSWORD")
-    
-    if not sender_email or not password:
-        print("Error: Sender email or password missing.")
-        sys.exit(1)
-        
-    candidates = get_followup_candidates()
-    print(f"Found {len(candidates)} total candidates for follow-ups.")
-    
-    if not candidates:
-        print("No candidates to follow up with.")
-        return
-        
-    to_send = candidates[:limit]
-    print(f"Processing batch of {len(to_send)} follow-ups...")
-    
-    queue = load_queue()
-    fields = []
-    if queue:
-        fields = list(queue[0].keys())
-        # Make sure date_followup_sent is in fields if we want to track it, or we can just update status to "Followup-Sent"
-        # Since we cannot change queue schema easily, we will change "status" to "Followup-Sent" and update "date_sent" to reflect followup date
-        
-    sent_count = 0
-    for idx, c in enumerate(to_send):
-        comp_name = c["company_name"]
-        
-        success = send_followup_email(sender_email, password, c, dry_run=dry_run)
-        
-        if success and not dry_run:
-            # Update entry in queue
-            for q_row in queue:
-                if q_row["company_name"] == comp_name and q_row["email"] == c["email"]:
-                    q_row["status"] = "Followup-Sent"
-                    q_row["date_sent"] = f"{q_row['date_sent']} | Followup: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-                    break
-            save_queue(queue, fields)
-            sent_count += 1
-            
-            # Wait between sends to avoid spam filters
-            if idx < len(to_send) - 1:
-                delay = random.randint(30, 60)
-                print(f"Waiting {delay} seconds...")
-                time.sleep(delay)
-                
-    print(f"Follow-up batch completed. Sent: {sent_count}.")
+        # 2. Query candidates from SQLite
+        candidates = db.followup_candidates(conn, min_days=6)
+        print(f"[Followup] Found {len(candidates)} candidate(s) due for follow-up.")
+        if not candidates:
+            return {"sent": 0, "candidates": 0, "aborted": False}
+
+        to_send = candidates[:limit]
+        print(f"[Followup] Processing batch of {len(to_send)} follow-up(s) (dry_run={dry_run})...")
+
+        sender = None
+        if not dry_run:
+            sender = EmailSender()
+
+        # Locate CV
+        cv_path = applicant.CV_PATH
+        if not os.path.exists(cv_path):
+            alt_cv = os.path.join(os.path.dirname(os.path.abspath(__file__)), applicant.CV_PATH)
+            if os.path.exists(alt_cv):
+                cv_path = alt_cv
+
+        sent_count = 0
+        for idx, c in enumerate(to_send):
+            comp_name = c["company_name"]
+            recipient_email = c["recipient_email"]
+            role_title = c["role_title"] or applicant.role_for(c["company_type"])
+            initial_subject = c["initial_subject"] or applicant.subject(role_title)
+            subject = initial_subject if initial_subject.startswith("Re: ") else f"Re: {initial_subject}"
+            in_reply_to = c["initial_message_id"]
+            references = c["initial_message_id"]
+
+            has_threading = bool(in_reply_to)
+            threading_desc = f"YES (In-Reply-To: {in_reply_to})" if has_threading else "NO (legacy NULL id)"
+
+            if dry_run:
+                print(f"[DRY-RUN] Recipient: {recipient_email} ({comp_name}) | Subject: {subject} | Threading headers: {threading_desc}")
+            else:
+                recipient_name = c["full_name"] or ""
+                sender_email = sender.sender_email
+
+                body_text = (
+                    f"{applicant.salutation(recipient_name)},\n\n"
+                    f"I hope this email finds you well.\n\n"
+                    f"I am writing to follow up briefly on my application for {role_title} opportunities at {comp_name} sent last week.\n\n"
+                    f"I remain very interested in the work your team is doing, and wanted to check if there are any updates or if you would be open to a brief 10-minute call to connect. "
+                    f"I would be glad to share how my experience with platform engineering on AWS and Kubernetes, GitOps delivery, observability, and shipping applied AI systems for clients can support your team's goals.\n\n"
+                    f"I have attached my updated CV for your convenience. Please let me know if there is any other information I can provide.\n\n"
+                    f"Thank you for your time and consideration.\n\n"
+                    f"Best regards,\n\n"
+                    + applicant.signature()
+                )
+
+                original_date = c["initial_sent_at"]
+                body_text += (
+                    f"\n\n---\n"
+                    f"Original Message:\n"
+                    f"From: {sender_email}\n"
+                    f"Sent: {original_date}\n"
+                    f"Subject: {initial_subject}\n\n"
+                    + applicant.outreach_body(comp_name, role_title)
+                )
+
+                attachments = (cv_path,) if os.path.exists(cv_path) else ()
+
+                print(f"[Followup] Sending follow-up to {recipient_email} ({threading_desc})...")
+                res = sender.send_followup(
+                    recipient_email=recipient_email,
+                    subject=subject,
+                    body=body_text,
+                    in_reply_to=in_reply_to,
+                    references=references,
+                    attachments=attachments
+                )
+
+                # Record send in DB — one transaction per send
+                db.record_send(
+                    conn=conn,
+                    company_id=c["company_id"],
+                    contact_id=c["contact_id"],
+                    recipient_email=recipient_email,
+                    email_type="followup",
+                    subject=subject,
+                    message_id=res.get("message_id"),
+                    in_reply_to=in_reply_to,
+                    references=references,
+                    status="SUCCESS" if res["ok"] else "FAILED",
+                    error=res.get("error"),
+                    new_company_status="Followup-Sent" if res["ok"] else None
+                )
+
+                if res["ok"]:
+                    sent_count += 1
+
+                # Delay between sends to avoid rate limits / spam flags
+                if idx < len(to_send) - 1:
+                    delay = random.randint(30, 60)
+                    print(f"[Followup] Waiting {delay}s before next send...")
+                    time.sleep(delay)
+
+        print(f"[Followup] Batch complete. Sent: {sent_count} / {len(to_send)}.")
+        return {"sent": sent_count, "candidates": len(candidates), "aborted": False}
+    finally:
+        if close_conn:
+            conn.close()
+
+
+def main(argv=None):
+    args = argv if argv is not None else sys.argv[1:]
+    is_live = len(args) > 0 and args[0] == "run"
+    run_followups(limit=10, dry_run=not is_live)
+
 
 if __name__ == "__main__":
-    # If "run" argument is passed, do live send, otherwise do dry-run
-    is_live = len(sys.argv) > 1 and sys.argv[1] == "run"
-    run_followups(limit=10, dry_run=not is_live)
+    main()
