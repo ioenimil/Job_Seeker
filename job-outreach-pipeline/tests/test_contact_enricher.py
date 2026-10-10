@@ -1,4 +1,5 @@
 import os
+import io
 import tempfile
 import unittest
 from unittest.mock import MagicMock, patch
@@ -45,8 +46,13 @@ class TestContactEnricher(unittest.TestCase):
         self.assertEqual(classify_title("Head of Talent Acquisition")[0], 4)
         self.assertEqual(classify_title("Lead Software Engineer")[0], 5)
         self.assertEqual(classify_title("CEO & Founder")[0], 6)
-        self.assertEqual(classify_title("Software Engineer")[0], 7)
-        self.assertEqual(classify_title(None)[0], 7)
+        # Tier 7 is Departmental Inbox
+        self.assertEqual(classify_title("Software Engineer")[0], 8)
+        self.assertEqual(classify_title(None)[0], 8)
+        # Tier 9 is non-hiring titles
+        self.assertEqual(classify_title("VP of Sales")[0], 9)
+        self.assertEqual(classify_title("Marketing Manager")[0], 9)
+        self.assertEqual(classify_title("Customer Success Lead")[0], 9)
 
         # Tie breaking: valid (1) > accept_all (2) > unknown (3), higher confidence is better
         c1 = {"tier": 1, "verification_status": "valid", "confidence_score": 90}
@@ -658,6 +664,222 @@ class TestContactEnricher(unittest.TestCase):
             # Test company found with dry-run
             ret_ok = main(["--company", "CLI Target", "--dry-run", "--limit", "5"])
             self.assertEqual(ret_ok, 0)
+
+    # =========================================================================
+    # Regressions for Orchestrator Review Feedback
+    # =========================================================================
+
+    def test_hunter_called_exactly_once_when_apify_needed_and_status_pending(self):
+        """
+        Feedback 1: In a run where Apify fallback is needed, Hunter is called
+        EXACTLY ONCE per company (never twice), and an Apify departmental hit
+        ends with status Pending (not Skipped).
+        """
+        comp_id, _ = db.upsert_company(self.conn, "SingleHit Co", website="https://singlehit.com")
+
+        # Hunter returns empty emails
+        self.mock_session.get.return_value = MockResponse(200, {"data": {"emails": []}})
+
+        # Apify returns a departmental inbox
+        mock_apify = MagicMock()
+        mock_apify.run_contact_scraper.return_value = [
+            {
+                "url": "https://singlehit.com",
+                "domain": "singlehit.com",
+                "emails": ["careers@singlehit.com"]
+            }
+        ]
+
+        enricher = ContactEnricher(
+            self.conn,
+            hunter_key="valid_hunter",
+            prospeo_key=None,
+            apify=mock_apify,
+            session=self.mock_session
+        )
+
+        results = enricher.run(statuses=("Pending",))
+
+        self.assertEqual(len(results), 1)
+        # Hunter must be called EXACTLY ONCE for this company!
+        self.assertEqual(self.mock_session.get.call_count, 1)
+
+        # Company must end with status Pending, NOT Skipped!
+        updated = db.get_company(self.conn, comp_id)
+        self.assertEqual(updated["status"], "Pending")
+        self.assertFalse(updated["notes"])  # None or ""
+
+        # Outcome is departmental
+        self.assertEqual(results[0]["outcome"], "enriched_departmental")
+        self.assertEqual(results[0]["primary_email"], "careers@singlehit.com")
+
+    def test_status_scope_never_touches_protected_statuses(self):
+        """
+        Feedback 2: Status scope never touches Sent/Followup-Sent/Replied/Bounced/Apply-Online/Approved.
+        """
+        protected_list = ["Sent", "Followup-Sent", "Replied", "Bounced", "Apply-Online", "Approved"]
+        for stat in protected_list:
+            cid, _ = db.upsert_company(self.conn, f"Protected {stat}", website=f"https://prot-{stat.lower()}.com")
+            db.update_company(self.conn, cid, status=stat, notes="pre-existing note")
+
+            comp = db.get_company(self.conn, cid)
+
+            # Hunter finds a CTO
+            self.mock_session.get.return_value = MockResponse(200, {
+                "data": {
+                    "emails": [{
+                        "value": f"cto@prot-{stat.lower()}.com",
+                        "position": "CTO",
+                        "verification": {"status": "valid"},
+                        "confidence": 90
+                    }]
+                }
+            })
+
+            enricher = ContactEnricher(
+                self.conn,
+                hunter_key="valid_hunter",
+                prospeo_key=None,
+                session=self.mock_session
+            )
+
+            enricher.enrich_company(comp)
+
+            # Status must NOT be modified
+            after = db.get_company(self.conn, cid)
+            self.assertEqual(after["status"], stat)
+            self.assertEqual(after["notes"], "pre-existing note")
+
+    def test_status_scope_re_enriching_skipped_sets_pending_and_clears_note(self):
+        """
+        Feedback 2: When contacts are found for a previously Skipped(no_contact_found)
+        company, it is set back to Pending and that note is cleared.
+        """
+        comp_id, _ = db.upsert_company(self.conn, "Previously Skipped", website="https://prevskip.com")
+        db.update_company(self.conn, comp_id, status="Skipped", notes="no_contact_found")
+
+        # Hunter finds a CTO
+        self.mock_session.get.return_value = MockResponse(200, {
+            "data": {
+                "emails": [{
+                    "value": "cto@prevskip.com",
+                    "position": "CTO",
+                    "verification": {"status": "valid"},
+                    "confidence": 95
+                }]
+            }
+        })
+
+        enricher = ContactEnricher(
+            self.conn,
+            hunter_key="valid_hunter",
+            session=self.mock_session
+        )
+
+        comp = db.get_company(self.conn, comp_id)
+        enricher.enrich_company(comp)
+
+        after = db.get_company(self.conn, comp_id)
+        self.assertEqual(after["status"], "Pending")
+        self.assertEqual(after["notes"], "")
+
+    def test_ranking_departmental_outranks_other_person_and_non_hiring_never_primary(self):
+        """
+        Feedback 3: Departmental inbox (Tier 7) outranks 'other person' (Tier 8).
+        Non-hiring titles (Tier 9: sales, marketing, support, etc.) are stored as contacts
+        but NEVER made primary.
+        """
+        comp_id, _ = db.upsert_company(self.conn, "TitleRank Inc", website="https://titlerank.com")
+        comp = db.get_company(self.conn, comp_id)
+
+        # Hunter returns:
+        # 1) VP Sales (non-hiring title -> stored, never primary)
+        # 2) General developer (other person -> Tier 8)
+        hunter_payload = {
+            "data": {
+                "emails": [
+                    {
+                        "value": "sales@titlerank.com",
+                        "first_name": "Sam",
+                        "last_name": "Sales",
+                        "position": "VP of Sales",
+                        "confidence": 99,
+                        "verification": {"status": "valid"}
+                    },
+                    {
+                        "value": "dev@titlerank.com",
+                        "first_name": "Dan",
+                        "last_name": "Dev",
+                        "position": "Software Engineer",
+                        "confidence": 80,
+                        "verification": {"status": "valid"}
+                    }
+                ]
+            }
+        }
+        self.mock_session.get.return_value = MockResponse(200, hunter_payload)
+
+        # Apify returns careers@titlerank.com (Departmental Inbox -> Tier 7)
+        apify_items = [
+            {
+                "url": "https://titlerank.com",
+                "domain": "titlerank.com",
+                "emails": ["careers@titlerank.com"]
+            }
+        ]
+
+        enricher = ContactEnricher(
+            self.conn,
+            hunter_key="valid_hunter",
+            prospeo_key=None,
+            session=self.mock_session
+        )
+
+        res = enricher.enrich_company(comp, apify_items=apify_items)
+
+        # careers@ (Tier 7) must OUTRANK dev@ (Tier 8)
+        self.assertEqual(res["primary_email"], "careers@titlerank.com")
+        self.assertEqual(res["outcome"], "enriched_departmental")
+
+        contacts = db.list_contacts(self.conn, comp_id)
+        by_email = {c["email"]: c for c in contacts}
+
+        # careers@ is primary
+        self.assertEqual(by_email["careers@titlerank.com"]["is_primary"], 1)
+
+        # sales@ is stored as contact, but NOT primary
+        self.assertIn("sales@titlerank.com", by_email)
+        self.assertEqual(by_email["sales@titlerank.com"]["is_primary"], 0)
+
+        # dev@ is stored as contact, but NOT primary
+        self.assertIn("dev@titlerank.com", by_email)
+        self.assertEqual(by_email["dev@titlerank.com"]["is_primary"], 0)
+
+    def test_noise_unconfigured_printed_once_per_run(self):
+        """
+        Feedback 4: Unconfigured provider notice is printed once per run, not per company.
+        """
+        id1, _ = db.upsert_company(self.conn, "Noise Co 1", website="https://n1.com")
+        id2, _ = db.upsert_company(self.conn, "Noise Co 2", website="https://n2.com")
+        id3, _ = db.upsert_company(self.conn, "Noise Co 3", website="https://n3.com")
+
+        enricher = ContactEnricher(
+            self.conn,
+            hunter_key="your_hunter_key_here",
+            prospeo_key="",
+            session=self.mock_session
+        )
+
+        captured_stdout = io.StringIO()
+        with patch("sys.stdout", captured_stdout):
+            enricher.run(statuses=("Pending",))
+
+        output = captured_stdout.getvalue()
+        hunter_notice_count = output.count("Hunter API key not configured or placeholder; skipping.")
+        prospeo_notice_count = output.count("Prospeo API key not configured or placeholder; skipping.")
+
+        self.assertEqual(hunter_notice_count, 1)
+        self.assertEqual(prospeo_notice_count, 1)
 
 
 if __name__ == "__main__":
