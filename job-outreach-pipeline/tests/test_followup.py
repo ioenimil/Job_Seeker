@@ -83,6 +83,30 @@ class TestFollowupPipeline(unittest.TestCase):
     @patch("time.sleep")
     @patch("check_inbox.run_check")
     @patch("followup_pipeline.EmailSender")
+    def test_followup_quotes_the_stored_original_and_greets_by_name(self, mock_sender_cls, mock_run_check, mock_sleep):
+        """The follow-up quotes the body the recipient actually got; legacy sends without a stored body quote nothing."""
+        original = "Dear Alice,\n\nMy name is Isaac.\n\nThanks for reading."
+        self.conn.execute("UPDATE outreaches SET body = ? WHERE company_id = ? AND email_type = 'initial'",
+                          (original, self.c1_id))
+        mock_sender = MagicMock()
+        mock_sender.sender_email = "test@example.com"
+        mock_sender.send_followup.side_effect = lambda **kw: {
+            "ok": True, "message_id": f"<f-{kw['recipient_email']}>", "subject": kw["subject"], "error": None}
+        mock_sender_cls.return_value = mock_sender
+
+        run_followups(conn=self.conn, limit=10, dry_run=False, check_inbox_first=True)
+
+        bodies = {c.kwargs["recipient_email"]: c.kwargs["body"] for c in mock_sender.send_followup.call_args_list}
+        alpha = bodies["recruiter@alphatech.com"]
+        self.assertTrue(alpha.startswith("Dear Alice,"))
+        self.assertIn("wrote:\n> Dear Alice,\n>\n> My name is Isaac.", alpha)
+        self.assertNotIn("wrote:", bodies["jobs@betainc.com"])
+        stored = [o for o in db.list_outreaches(self.conn, self.c1_id) if o["email_type"] == "followup"][0]
+        self.assertEqual(stored["body"], alpha)
+
+    @patch("time.sleep")
+    @patch("check_inbox.run_check")
+    @patch("followup_pipeline.EmailSender")
     def test_followup_live_run_sends_and_records_per_send(self, mock_sender_cls, mock_run_check, mock_sleep):
         mock_sender = MagicMock()
         mock_sender.sender_email = "test@example.com"

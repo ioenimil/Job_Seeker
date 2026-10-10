@@ -7,7 +7,11 @@ import requests
 import applicant
 from config import config
 import db
+import style_lint
 from exa_search import ExaSearch
+
+MIN_BULLETS = 2
+MAX_BULLETS = 3
 
 
 def now_iso():
@@ -132,7 +136,7 @@ def fallback_pitch(company_row) -> dict:
 def validate_pitch(pitch: dict, company) -> list[str]:
     """
     Grounding invariant validation:
-    - exactly 3 bullets with distinct fact_ids that exist in ACHIEVEMENTS
+    - 2 or 3 bullets (MIN_BULLETS..MAX_BULLETS) with distinct fact_ids that exist in ACHIEVEMENTS
     - every number/percentage/metric in a bullet appears in its source fact text
     - every technology/proper-noun token in a bullet appears in its source fact text (case-insensitive)
     - bullet titles validated against source fact title + text
@@ -140,6 +144,8 @@ def validate_pitch(pitch: dict, company) -> list[str]:
     - no certification/degree/employer words unless present in FACT_SHEET/source (word boundaries)
     - lead may only reference the company name and terms present in summary + website domain
     - length caps (bullet <= 320 chars, lead <= 300)
+    - style: no stock AI vocabulary, signpost transitions, editorialising participle endings, false antithesis,
+      hedges or cover-letter cliches (style_lint); a fact's own wording is never penalised in its bullet
     Returns list of error messages (empty list if valid).
     """
     errors = []
@@ -154,15 +160,16 @@ def validate_pitch(pitch: dict, company) -> list[str]:
     elif len(lead) > 300:
         errors.append(f"Lead exceeds 300 characters ({len(lead)} chars).")
 
-    if not isinstance(bullets, list) or len(bullets) != 3:
-        errors.append(f"Bullets must contain exactly 3 items (found {len(bullets) if isinstance(bullets, list) else 0}).")
+    if not isinstance(bullets, list) or not MIN_BULLETS <= len(bullets) <= MAX_BULLETS:
+        found = len(bullets) if isinstance(bullets, list) else 0
+        errors.append(f"Bullets must contain {MIN_BULLETS} to {MAX_BULLETS} items (found {found}).")
         return errors
 
     ach_map = {ach["id"]: ach for ach in applicant.ACHIEVEMENTS}
     fact_ids = [b.get("fact_id") for b in bullets if isinstance(b, dict)]
 
-    if len(set(fact_ids)) != 3:
-        errors.append(f"Bullets must have 3 distinct fact_ids (found {len(set(fact_ids))}).")
+    if len(set(fact_ids)) != len(bullets):
+        errors.append(f"Bullets must cite distinct fact_ids (found {len(set(fact_ids))} distinct for {len(bullets)} bullets).")
 
     for idx, b in enumerate(bullets):
         if not isinstance(b, dict):
@@ -207,6 +214,9 @@ def validate_pitch(pitch: dict, company) -> list[str]:
         for tok in title_tokens:
             if tok not in source_combined:
                 errors.append(f"Bullet {idx+1} title claims technology/token '{tok}' not in source fact '{fid}'.")
+
+        for problem in style_lint.lint(f"{title}. {text}", allowed=source_combined):
+            errors.append(f"Bullet {idx+1} style: {problem}.")
 
 
     # Check certification/degree/employer words across all bullets
@@ -258,6 +268,9 @@ def validate_pitch(pitch: dict, company) -> list[str]:
     for num in lead_numbers:
         if num not in allowed_lead_context:
             errors.append(f"Lead references metric/number '{num}' not found in company summary or company name.")
+
+    for problem in style_lint.lint(lead_clean):
+        errors.append(f"Lead style: {problem}.")
 
     return errors
 
@@ -384,21 +397,37 @@ def build_pitch(company_row, provider=None) -> dict:
         c_summary = getattr(company_row, "summary", "") or ""
 
     system_prompt = (
-        "You are an expert platform and AI engineer synthesizing a tailored cover letter pitch.\n"
-        "You must respond ONLY with valid JSON with this exact schema:\n"
+        "You write the company-specific part of an engineer's cover letter: a short lead and 2-3 achievement "
+        "bullets. It should read like the engineer wrote it to this one company, in plain, confident prose.\n"
+        "Respond ONLY with valid JSON in this exact schema:\n"
         "{\n"
-        '  "lead": "1-2 sentence lead naming what the company actually does (from summary only, <= 300 chars)",\n'
+        '  "lead": "1-2 sentences, <= 300 chars, on what this company actually builds and why the work below is relevant",\n'
         '  "bullets": [\n'
         '    {"fact_id": "kebab-id-from-achievements", "title": "Short Title", "text": "Rephrased bullet <= 320 chars"}\n'
         "  ]\n"
         "}\n"
-        "Rules:\n"
-        "1. Select EXACTLY 3 distinct achievements from the candidate's achievements bank.\n"
-        "2. Grounding invariant: Every metric, number, and percentage in your bullet MUST appear in the source fact text.\n"
-        "3. Every technology or proper noun in your bullet MUST appear in the source fact text. You may NEVER claim company's stack as candidate experience.\n"
-        "4. No certification/degree/employer words unless present in candidate fact sheet.\n"
-        "5. The lead may only reference the company name and terms present in the company summary (if summary is empty, keep lead generic).\n"
-        "6. Output JSON only, no markdown wrappers."
+        "Grounding rules (enforced by a validator; violations are rejected):\n"
+        "1. Pick the 2 or 3 achievements most relevant to this company, each a distinct fact_id. Prefer 2 strong "
+        "matches over padding with a weak third.\n"
+        "2. Every number, metric, technology and proper noun in a bullet or its title must appear in that fact's text. "
+        "Never present the company's stack as the candidate's experience.\n"
+        "3. No certifications, degrees or employers unless they are in the candidate fact sheet.\n"
+        "4. The lead may only name technologies, products or figures that appear in the company summary or name. "
+        "With an empty summary, keep the lead about the kind of work, not invented specifics.\n"
+        "5. Be concrete only with details taken from the achievements and the summary. Never invent specifics.\n"
+        "Style rules:\n"
+        "6. Vary sentence length: a short sentence next to a longer one reads like a person; uniform 20-word "
+        "sentences read like a template. Don't start consecutive sentences the same way.\n"
+        "7. Never use: delve, foster, garner, underscore, illuminate, harness, pique, cultivate, traverse, navigate, "
+        "tapestry, realm, testament, beacon, paradigm, landscape, nuance, interplay, symphony, multifaceted, pivotal, "
+        "intricate, profound, vibrant, indispensable, bespoke, holistic, seamless(ly), inextricably, unequivocally, "
+        "undeniably.\n"
+        "8. No signpost openers (Moreover, Furthermore, In addition, Additionally, Consequently, Ultimately). "
+        "No em dashes. No trailing commentary such as ', highlighting my commitment to X' or ', showcasing Y'; "
+        "state results directly.\n"
+        "9. No 'it's not just X, it's Y' contrasts, no hedging, no flattery or cliches ('passionate about', "
+        "'strong interest', 'fast-paced').\n"
+        "10. Output JSON only, no markdown wrappers or commentary."
     )
 
     user_prompt = (

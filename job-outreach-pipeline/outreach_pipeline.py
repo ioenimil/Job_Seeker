@@ -217,7 +217,8 @@ def run_send_emails(conn, limit=DAILY_SEND_LIMIT, dry_run=False):
         role = role_of(company)
         letter_path, pitch = generate_letter(conn, company, contact)
         highlights = [b["text"] for b in pitch.get("bullets", [])] or None
-        body = applicant.outreach_body(company["name"], role, highlights=highlights)
+        named = contact["full_name"] if contact["email_kind"] == "person" else None
+        body = applicant.outreach_body(company["name"], role, highlights=highlights, recipient_name=named)
 
         if dry_run:
             print(f"[DRY-RUN] Would email {contact['email']} ({recipient_name_of(contact)}) at {company['name']} "
@@ -242,7 +243,7 @@ def run_send_emails(conn, limit=DAILY_SEND_LIMIT, dry_run=False):
             conn, company["id"], contact["id"], contact["email"], "initial",
             subject=result.get("subject"), message_id=result.get("message_id"),
             status="SUCCESS" if ok else "FAILED", error=result.get("error"),
-            cover_letter_path=letter_path, new_company_status="Sent" if ok else "Failed",
+            cover_letter_path=letter_path, new_company_status="Sent" if ok else "Failed", body=body,
         )
         if ok:
             sent_count += 1

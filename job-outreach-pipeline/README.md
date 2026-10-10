@@ -25,13 +25,14 @@ atomically together with its RFC 2822 `Message-ID`, so follow-ups thread correct
 | `db.py` | SQLite schema and data access: `companies`, `contacts`, `outreaches`, `inbox_events`. WAL mode, foreign keys, `CHECK` constraints, atomic `record_send`. |
 | `migrate_from_csv.py` | One-shot, idempotent import of the old `outreach_queue.csv` / `outreach_log.csv`, with a verification report. |
 | `contact_enricher.py` | Decision-maker waterfall: Hunter.io domain search → Prospeo → Apify scrape fallback. Ranks CTO → VP/Head of Eng → Eng Manager → Head of Talent → Tech Lead → Founder → departmental inbox. Generic inboxes (`info@`, `hello@`) are stored but never made primary. |
-| `llm_tailor.py` | Grounded pitch synthesis (Anthropic / OpenAI / Ollama / none) with a code-enforced grounding validator. |
+| `llm_tailor.py` | Grounded pitch synthesis (Anthropic / OpenAI / Ollama / none) with a code-enforced grounding and style validator. |
+| `style_lint.py` | Mechanical-prose checks shared by the validator and the template tests. |
 | `triage.py` | Interactive review TUI built on `rich`. |
 | `cover_letter_generator.py` | ReportLab PDF letters in IBM Plex Sans. |
 | `email_sender.py` | Gmail SMTP client: sets `Message-ID`, `Date`, `List-Unsubscribe`; threads follow-ups with `In-Reply-To` / `References`. |
 | `check_inbox.py` | Read-only IMAP scanner: classifies bounces, auto-replies, unsubscribes and replies; backfills Message-IDs of older sends from the Sent folder. |
 | `followup_pipeline.py` | Threaded follow-ups 6+ days after the first email, skipping anyone who replied or bounced. |
-| `applicant.py` | Your profile, the achievement **fact bank** (`ACHIEVEMENTS`, `FACT_SHEET`) and the email body. |
+| `applicant.py` | Your profile, the achievement **fact bank** (`ACHIEVEMENTS`, `FACT_SHEET`), and the first-email and follow-up bodies. |
 | `exa_search.py`, `apify_scraper.py`, `config.py` | Exa search + company summaries, Apify contact scraper, `.env` loader. |
 
 ### Company lifecycle
@@ -98,18 +99,33 @@ python outreach_pipeline.py followup            # dry-run, then: followup run
 ## Grounded tailoring
 
 `llm_tailor.ensure_pitch` fetches a company summary (Exa contents API) once, asks the configured LLM for a 1–2
-sentence lead plus exactly 3 bullets selected from `applicant.ACHIEVEMENTS`, and caches the result in
+sentence lead plus 2 or 3 bullets selected from `applicant.ACHIEVEMENTS` (two strong matches beat a padded third), and caches the result in
 `companies.pitch` so what you approve in `review` is what gets sent. The bullets also replace the generic
 highlights in the email body.
 
 The grounding invariant is enforced in code (`validate_pitch`), not just in the prompt:
 
-* every bullet cites an existing `fact_id`, with 3 distinct facts;
+* every bullet cites an existing `fact_id`, with 2–3 distinct facts;
 * every number, metric, technology or proper noun in a bullet **or its title** must appear in that fact's source
   text, so a company's stack can never be claimed as your experience;
 * certifications, degrees and employers must appear in `FACT_SHEET`;
 * the lead may only name technologies or figures that appear in the company summary, name or domain;
 * length caps apply.
+
+The same validator enforces a **human-prose style** (`style_lint.py`). Violations count as errors, so they trigger
+the retry like a grounding failure:
+
+* no stock LLM vocabulary (*delve, foster, pivotal, seamless, landscape…*);
+* no signpost openers (*Moreover, Furthermore, Ultimately…*);
+* at most one em dash per 800 words;
+* no editorialising endings (*", highlighting my commitment to…"*);
+* no "it's not just X, it's Y" contrasts, hedges or cover-letter clichés (*"I hope this email finds you well"*,
+  *"strong interest"*).
+
+Wording from the fact itself is never penalised in its own bullet. The prompt also asks for varied sentence length.
+The fixed letter and email templates are held to the same rules, plus a rhythm check (a short sentence somewhere,
+no flat cadence, no three sentences in a row opening with the same word). `tests/test_style.py` fails if an edit to
+the wording reintroduces any of these.
 
 An invalid pitch gets one retry with the errors fed back. If it fails again, the deterministic per-type pitch is
 used and the reason is recorded. Letter generation is never blocked.
@@ -120,6 +136,9 @@ used and the reason is recorded. Letter generation is never blocked.
 
 * **Threading**: every message gets a `Message-ID` that is stored in `outreaches.message_id`. Older sends without
   one are backfilled from Gmail's Sent folder on the first `check-replies` run.
+* **Accurate quoting**: the exact body of every email is stored (`outreaches.body`, schema v2). Follow-ups greet the
+  contact by name and quote the email the recipient actually received; sends made before v2 aren't quoted, and rely
+  on threading instead.
 * **Rate limits**: 30–60 s random delay between sends; 15 cold emails and 10 follow-ups per run by default.
 * **Stop rules**: `Replied` and `Bounced` companies are excluded by the database query, and `followup run` re-checks
   the inbox immediately before sending.

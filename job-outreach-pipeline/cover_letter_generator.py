@@ -78,12 +78,12 @@ class CoverLetterGenerator:
         """
         # Paragraph 1: Introduction
         p1 = (
-            f"I am writing to express my strong interest in the {role_title} position at {company_name}. "
-            f"I am a Platform Engineer (DevOps) at AmaliTech Services GmbH and a Computer Engineering graduate of KNUST, "
+            f"I'd like to join {company_name} as a {role_title}. "
+            f"I'm a Platform Engineer (DevOps) at AmaliTech Services GmbH and a Computer Engineering graduate of KNUST, "
             f"certified as an AWS Solutions Architect &ndash; Associate and a Kubernetes and Cloud Native Associate (KCNA). "
-            f"Alongside platform work, I build and ship applied AI systems against client requirements, most recently an "
-            f"end-to-end RAG platform for BoaSoft and agentic tool-calling datasets for Turing, so I am comfortable working "
-            f"where infrastructure, product, and the people using it meet."
+            f"Platform work is the day job. Next to it I build and ship applied AI against client requirements: most "
+            f"recently an end-to-end RAG platform for BoaSoft and agentic tool-calling datasets for Turing. "
+            f"I like working where infrastructure, product and the people using it meet."
         )
 
         achievements_by_id = {ach["id"]: (ach["title"], ach["text"]) for ach in applicant.ACHIEVEMENTS}
@@ -91,8 +91,8 @@ class CoverLetterGenerator:
         # Paragraph 2 & bullet points based on company type
         if company_type == "ai":
             p2 = (
-                "Getting AI systems out of a demo and into a customer's hands is as much an engineering problem as a "
-                "modelling one. I work across both sides of that gap:"
+                "Getting AI out of a demo and into a customer's hands is an engineering problem as much as a "
+                "modelling one. I work on both halves:"
             )
             bullets = [
                 achievements_by_id["applied-ai-delivery"],
@@ -102,8 +102,8 @@ class CoverLetterGenerator:
 
         elif company_type == "consultancy":
             p2 = (
-                "Client engagements reward engineers who can land in an unfamiliar environment, understand what the "
-                "client actually needs, and leave behind something that keeps running after handover:"
+                "Client work rewards engineers who can drop into an unfamiliar setup and work out what the client "
+                "actually needs. The harder part is leaving something that still runs after handover. Some of that work:"
             )
             bullets = [
                 achievements_by_id["client-facing-delivery"],
@@ -113,8 +113,8 @@ class CoverLetterGenerator:
 
         elif company_type == "fintech":
             p2 = (
-                "Transactional systems demand reliability, auditability, and disciplined delivery. I bring hands-on "
-                "experience with each:"
+                "Payment systems don't get to be flaky. Every transaction has to be reliable and auditable, and every "
+                "release disciplined. Relevant work:"
             )
             bullets = [
                 achievements_by_id["event-driven-financial-systems"],
@@ -124,8 +124,8 @@ class CoverLetterGenerator:
 
         elif company_type == "telecom" or company_type == "isp":
             p2 = (
-                "Telecom and ISP systems rely heavily on robust infrastructure and proactive monitoring. "
-                "I bring a strong foundation in both:"
+                "A network is only as good as the infrastructure under it and the monitoring watching it. "
+                "I build both:"
             )
             bullets = [
                 achievements_by_id["aws-infrastructure"],
@@ -135,8 +135,8 @@ class CoverLetterGenerator:
 
         elif company_type == "bank":
             p2 = (
-                "Financial environments demand strong security posture, auditability, and controlled access. "
-                "I bring experience building these into the platform itself:"
+                "In a bank, security and access control have to live inside the platform, where they can be audited. "
+                "That's where I put them:"
             )
             bullets = [
                 achievements_by_id["threat-detection-audit"],
@@ -146,8 +146,8 @@ class CoverLetterGenerator:
 
         else: # startup / general product hunt
             p2 = (
-                "In fast-growing startups, balancing engineering velocity and system reliability is critical. "
-                "I bring automation-first skills that directly support that goal:"
+                "Startups need to ship fast without the platform falling over. Automating the slow, error-prone "
+                "parts is how I make both possible:"
             )
             bullets = [
                 achievements_by_id["infrastructure-velocity"],
@@ -157,8 +157,8 @@ class CoverLetterGenerator:
 
         # Paragraph 3: Closing
         p3 = (
-            f"Thank you for your time and consideration. I would welcome the opportunity to discuss how my platform "
-            f"engineering and forward-deployed experience can support the technology initiatives at {company_name}."
+            f"If any of this would help {company_name}, I'd be glad to talk, whether that's a short call or a few "
+            f"questions over email. Thanks for reading."
         )
         return {"intro": p1, "lead": p2, "bullets": bullets, "closing": p3}
 

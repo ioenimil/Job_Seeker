@@ -75,30 +75,13 @@ def run_followups(conn=None, limit=10, dry_run=True, check_inbox_first=True):
             if dry_run:
                 print(f"[DRY-RUN] Recipient: {recipient_email} ({comp_name}) | Subject: {subject} | Threading headers: {threading_desc}")
             else:
-                recipient_name = c["full_name"] or ""
-                sender_email = sender.sender_email
+                body_text = applicant.followup_body(comp_name, role_title, recipient_name=c["full_name"] or None)
 
-                body_text = (
-                    f"{applicant.salutation(recipient_name)},\n\n"
-                    f"I hope this email finds you well.\n\n"
-                    f"I am writing to follow up briefly on my application for {role_title} opportunities at {comp_name} sent last week.\n\n"
-                    f"I remain very interested in the work your team is doing, and wanted to check if there are any updates or if you would be open to a brief 10-minute call to connect. "
-                    f"I would be glad to share how my experience with platform engineering on AWS and Kubernetes, GitOps delivery, observability, and shipping applied AI systems for clients can support your team's goals.\n\n"
-                    f"I have attached my updated CV for your convenience. Please let me know if there is any other information I can provide.\n\n"
-                    f"Thank you for your time and consideration.\n\n"
-                    f"Best regards,\n\n"
-                    + applicant.signature()
-                )
-
-                original_date = c["initial_sent_at"]
-                body_text += (
-                    f"\n\n---\n"
-                    f"Original Message:\n"
-                    f"From: {sender_email}\n"
-                    f"Sent: {original_date}\n"
-                    f"Subject: {initial_subject}\n\n"
-                    + applicant.outreach_body(comp_name, role_title)
-                )
+                # Quote the email they actually received. Sends from before schema v2 have no stored body;
+                # those follow-ups rely on In-Reply-To/References to sit in the original thread instead.
+                if c["initial_body"]:
+                    quoted = "\n".join(f"> {line}" if line else ">" for line in c["initial_body"].splitlines())
+                    body_text += f"\n\nOn {c['initial_sent_at']}, {applicant.NAME} <{sender.sender_email}> wrote:\n{quoted}\n"
 
                 attachments = (cv_path,) if os.path.exists(cv_path) else ()
 
@@ -125,7 +108,8 @@ def run_followups(conn=None, limit=10, dry_run=True, check_inbox_first=True):
                     references=references,
                     status="SUCCESS" if res["ok"] else "FAILED",
                     error=res.get("error"),
-                    new_company_status="Followup-Sent" if res["ok"] else None
+                    new_company_status="Followup-Sent" if res["ok"] else None,
+                    body=body_text
                 )
 
                 if res["ok"]:

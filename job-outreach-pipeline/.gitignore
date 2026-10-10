@@ -29,6 +29,7 @@
 !check_inbox.py
 !triage.py
 !llm_tailor.py
+!style_lint.py
 
 # Tests
 !tests/

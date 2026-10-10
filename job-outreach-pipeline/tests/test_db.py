@@ -23,7 +23,7 @@ class TestDB(unittest.TestCase):
         db.init_db(self.conn)
 
         cur = self.conn.execute("PRAGMA user_version;")
-        self.assertEqual(cur.fetchone()[0], 1)
+        self.assertEqual(cur.fetchone()[0], 2)
 
         # Verify key tables exist
         tables = [

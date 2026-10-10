@@ -165,6 +165,13 @@ def init_db(conn):
     version = row[0] if row else 0
     if version < 1:
         conn.execute("PRAGMA user_version = 1;")
+        version = 1
+    if version < 2:
+        # v2: keep the exact body of every email so follow-ups can quote what was really sent
+        columns = {r["name"] if isinstance(r, sqlite3.Row) else r[1] for r in conn.execute("PRAGMA table_info(outreaches)")}
+        if "body" not in columns:
+            conn.execute("ALTER TABLE outreaches ADD COLUMN body TEXT")
+        conn.execute("PRAGMA user_version = 2;")
 
 
 def connect(db_path=None):
@@ -465,7 +472,7 @@ def find_contact_by_email(conn, email):
 
 def record_send(conn, company_id, contact_id, recipient_email, email_type, subject, message_id, status,
                 in_reply_to=None, references=None, cover_letter_path=None, error=None, sent_at=None,
-                new_company_status=None):
+                new_company_status=None, body=None):
     """
     ONE transaction: insert outreach row; if new_company_status given, set the company status too.
     Returns outreach_id.
@@ -485,11 +492,11 @@ def record_send(conn, company_id, contact_id, recipient_email, email_type, subje
             """INSERT INTO outreaches (
                 company_id, contact_id, recipient_email, email_type, subject,
                 message_id, in_reply_to, references_header, status, error,
-                sent_at, cover_letter_path
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                sent_at, cover_letter_path, body
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (company_id, contact_id, recipient_email, email_type, subject,
              message_id, in_reply_to, references, status, error,
-             sent_at, cover_letter_path)
+             sent_at, cover_letter_path, body)
         )
         outreach_id = cur.lastrowid
         if new_company_status is not None:
@@ -525,7 +532,8 @@ def followup_candidates(conn, min_days=6, now=None):
     Companies with status 'Sent' that have a SUCCESS initial outreach sent <= now - min_days,
     no SUCCESS followup yet, and status not in STOP_STATUSES.
     Each row exposes: company_id, company_name, company_type, role_title, recipient_email,
-    contact_id, full_name, initial_outreach_id, initial_message_id, initial_subject, initial_sent_at.
+    contact_id, full_name, initial_outreach_id, initial_message_id, initial_subject, initial_sent_at,
+    initial_body (NULL for sends made before schema v2).
     """
     if now is None:
         now_dt = datetime.now()
@@ -553,7 +561,8 @@ def followup_candidates(conn, min_days=6, now=None):
             o.id AS initial_outreach_id,
             o.message_id AS initial_message_id,
             o.subject AS initial_subject,
-            o.sent_at AS initial_sent_at
+            o.sent_at AS initial_sent_at,
+            o.body AS initial_body
         FROM companies comp
         JOIN outreaches o ON o.id = (
             SELECT o2.id FROM outreaches o2

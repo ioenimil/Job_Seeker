@@ -193,8 +193,13 @@ ACHIEVEMENTS = [
 ]
 
 
-def outreach_body(company_name, role, highlights=None):
-    """Plain-text body of the first cold email (also quoted by follow-ups)."""
+def greeting(company_name, recipient_name=None):
+    """'Dear Kwame' for a named person, otherwise 'Dear <Company> team'."""
+    return salutation(recipient_name) if recipient_name else f"Dear {company_name} team"
+
+
+def outreach_body(company_name, role, highlights=None, recipient_name=None):
+    """Plain-text body of the first cold email. `highlights` are the grounded pitch bullets for this company."""
     if highlights is not None:
         highlights_text = "\n".join(f"- {h}" for h in highlights)
     else:
@@ -207,18 +212,30 @@ def outreach_body(company_name, role, highlights=None):
         )
 
     return (
-        f"Dear Recruiting Team at {company_name},\n\n"
-        f"I hope this email finds you well.\n\n"
-        f"My name is {NAME}. I am a Platform Engineer (DevOps) at AmaliTech Services GmbH, a Computer Engineering "
-        f"graduate of KNUST, and an AWS Certified Solutions Architect – Associate and Kubernetes and Cloud Native "
-        f"Associate (KCNA). Alongside platform work, I build and ship applied AI systems against client requirements.\n\n"
-        f"I am writing to express my strong interest in {role} opportunities at {company_name}. "
-        f"To share details on how my background aligns with your work, I have attached my CV and a tailored cover letter.\n\n"
-        f"Some highlights of my work include:\n"
+        f"{greeting(company_name, recipient_name)},\n\n"
+        f"My name is {NAME}. I'm a Platform Engineer (DevOps) at AmaliTech Services GmbH and a Computer Engineering "
+        f"graduate of KNUST, with the AWS Certified Solutions Architect – Associate and Kubernetes and Cloud Native "
+        f"Associate (KCNA) certifications. Alongside the platform work, I build and ship applied AI systems for clients.\n\n"
+        f"I'd like to be considered for {role} work at {company_name}. My CV is attached, along with a cover letter "
+        f"written for {company_name}.\n\n"
+        f"Some of my work:\n"
         f"{highlights_text}\n\n"
-        f"I would welcome the opportunity to speak briefly with a member of your team or engineering leads about how "
-        f"I can add value to {company_name}.\n\n"
-        f"Thank you for your time and consideration.\n\n"
+        f"If it's useful, I'd be glad to have a short call with someone on your team or one of your engineering leads.\n\n"
+        f"Thanks for reading.\n\n"
+        f"Best regards,\n\n"
+        + signature()
+    )
+
+
+def followup_body(company_name, role, recipient_name=None):
+    """Plain-text body of the follow-up; the original email is quoted below it by followup_pipeline."""
+    return (
+        f"{greeting(company_name, recipient_name)},\n\n"
+        f"A quick follow-up on my earlier note about {role} work at {company_name}.\n\n"
+        f"I'm still keen. If there's an opening, or a 10-minute call would be easier than email, I'm happy to work "
+        f"around your schedule. The short version of what I'd bring: platform engineering on AWS and Kubernetes, "
+        f"GitOps delivery, observability, and applied AI shipped for clients.\n\n"
+        f"My CV is attached again so you don't have to dig for it.\n\n"
         f"Best regards,\n\n"
         + signature()
     )
