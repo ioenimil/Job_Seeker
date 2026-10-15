@@ -18,9 +18,9 @@ CREATE TABLE companies (
         created_at TEXT,
         updated_at TEXT
     );
-INSERT INTO "companies" VALUES(1,'PepaPay','https://pepapay.com','pepapay.com','fintech','Accra, Ghana','local','ghana_based','https://pepapay.com/','',NULL,NULL,NULL,'people_found_no_email','Pending','2026-10-07 00:00:00','2026-10-11 05:39:28');
-INSERT INTO "companies" VALUES(2,'Solvane Systems','https://www.solvanesystems.com','solvanesystems.com','fintech','Accra, Ghana','local','ghana_based','https://www.solvanesystems.com/','',NULL,NULL,NULL,'generic_inbox_only','Pending','2026-10-07 00:00:00','2026-10-11 05:39:28');
-INSERT INTO "companies" VALUES(3,'DODY Stack','https://dodystack.com','dodystack.com','fintech','Accra, Ghana','local','ghana_based','https://dodystack.com/','',NULL,NULL,NULL,'people_found_no_email','Pending','2026-10-07 00:00:00','2026-10-11 05:39:28');
+INSERT INTO "companies" VALUES(1,'PepaPay','https://pepapay.com','pepapay.com','fintech','Accra, Ghana','local','ghana_based','https://pepapay.com/','',NULL,NULL,NULL,'people_found_no_email','Pending','2026-10-07 00:00:00','2026-10-15 07:44:14');
+INSERT INTO "companies" VALUES(2,'Solvane Systems','https://www.solvanesystems.com','solvanesystems.com','fintech','Accra, Ghana','local','ghana_based','https://www.solvanesystems.com/','',NULL,NULL,NULL,'generic_inbox_only','Pending','2026-10-07 00:00:00','2026-10-15 07:44:14');
+INSERT INTO "companies" VALUES(3,'DODY Stack','https://dodystack.com','dodystack.com','fintech','Accra, Ghana','local','ghana_based','https://dodystack.com/','',NULL,NULL,NULL,'people_found_no_email','Pending','2026-10-07 00:00:00','2026-10-15 07:44:14');
 INSERT INTO "companies" VALUES(4,'SEBBAK Technologies','https://sebbak.com','sebbak.com','fintech','Accra, Ghana','local','ghana_based','https://sebbak.com/','',NULL,NULL,NULL,'no_contact_found','Skipped','2026-10-07 00:00:00','2026-10-10 12:24:58');
 INSERT INTO "companies" VALUES(5,'FinCon Ltd.','https://www.finconghana.com','finconghana.com','fintech','Accra, Ghana','local','ghana_based','https://www.finconghana.com/','',NULL,NULL,NULL,'no_contact_found','Skipped','2026-10-07 00:00:00','2026-10-10 12:24:58');
 INSERT INTO "companies" VALUES(6,'Devarps','https://www.devarps.com','devarps.com','consultancy','Accra, Ghana','local','ghana_based','https://www.devarps.com/','','Devarps is a Ghana-focused software development firm that builds custom software, mobile apps, and SaaS platforms tailored to local realities in Ghana and West Africa. They work with Ghanaian startups, SMEs, and enterprises, handling end-to-end development from architecture to delivery, with an emphasis on offline-first mobile apps, scalable web platforms, and fintech/ERP/CRM-style solutions.
@@ -52,10 +52,10 @@ Key selling points:
 - Proven ability to deliver investor-ready, scalable MVPs and modern cloud transitions with minimal downtime
 
 If you’re evaluating for a Ghana-focused project, Devarps positions itself as a locally oriented, end-to-end development partner with strong fintech integrations, offline-capable mobile apps, and transparent engagement from discovery to handover.',NULL,'{"lead": "Client work rewards engineers who can drop into an unfamiliar setup and work out what the client actually needs. The harder part is leaving something that still runs after handover. Some of that work:", "bullets": [{"fact_id": "client-facing-delivery", "title": "Client-Facing Delivery", "text": "At Turing I exceeded client KPIs for data accuracy and volume, helping take the team to #1 in dataset quality on client-verified benchmarks; at BoaSoft I shipped a RAG platform built around the client''s own documents."}, {"fact_id": "infrastructure-as-code", "title": "Infrastructure as Code", "text": "I design scalable AWS environments with Terraform and Docker, including a secure multi-tier VPC and modular application layers, so environments are reproducible across clients."}, {"fact_id": "gitops-secrets", "title": "GitOps & Secrets", "text": "I implement GitOps delivery with Argo CD, treating Git as the single source of truth for cluster state, and inject runtime credentials from HashiCorp Vault to keep secrets out of images and repositories."}], "provider": "none", "model": "deterministic", "grounded": true, "fallback_reason": null, "generated_at": "2026-10-11 06:02:10"}','restarted: first email only reached hr@devarps.com','Sent','2026-10-07 00:00:00','2026-10-11 06:34:01');
-INSERT INTO "companies" VALUES(7,'Exquode','https://www.exquode.com','exquode.com','consultancy','Accra, Ghana','local','ghana_based','https://www.exquode.com/','',NULL,NULL,NULL,'generic_inbox_only','Pending','2026-10-07 00:00:00','2026-10-11 05:39:28');
-INSERT INTO "companies" VALUES(8,'Gamma Technologies','https://gammatechgh.com','gammatechgh.com','consultancy','Accra, Ghana','local','ghana_based','https://gammatechgh.com/','',NULL,NULL,NULL,'people_found_no_email','Pending','2026-10-07 00:00:00','2026-10-11 05:39:28');
-INSERT INTO "companies" VALUES(9,'TriAxis Technologies','https://triaxistechnologies.com','triaxistechnologies.com','consultancy','Accra, Ghana','local','ghana_based','https://triaxistechnologies.com/','',NULL,NULL,NULL,'people_found_no_email','Pending','2026-10-07 00:00:00','2026-10-11 05:39:28');
-INSERT INTO "companies" VALUES(10,'Apex-Meta','https://apex-meta.com','apex-meta.com','consultancy','Accra, Ghana','local','ghana_based','https://apex-meta.com/','',NULL,NULL,NULL,'generic_inbox_only','Pending','2026-10-07 00:00:00','2026-10-11 05:39:28');
+INSERT INTO "companies" VALUES(7,'Exquode','https://www.exquode.com','exquode.com','consultancy','Accra, Ghana','local','ghana_based','https://www.exquode.com/','',NULL,NULL,NULL,'generic_inbox_only','Pending','2026-10-07 00:00:00','2026-10-15 07:44:14');
+INSERT INTO "companies" VALUES(8,'Gamma Technologies','https://gammatechgh.com','gammatechgh.com','consultancy','Accra, Ghana','local','ghana_based','https://gammatechgh.com/','',NULL,NULL,NULL,'people_found_no_email','Pending','2026-10-07 00:00:00','2026-10-15 07:44:14');
+INSERT INTO "companies" VALUES(9,'TriAxis Technologies','https://triaxistechnologies.com','triaxistechnologies.com','consultancy','Accra, Ghana','local','ghana_based','https://triaxistechnologies.com/','',NULL,NULL,NULL,'people_found_no_email','Pending','2026-10-07 00:00:00','2026-10-15 07:44:14');
+INSERT INTO "companies" VALUES(10,'Apex-Meta','https://apex-meta.com','apex-meta.com','consultancy','Accra, Ghana','local','ghana_based','https://apex-meta.com/','',NULL,NULL,NULL,'generic_inbox_only','Pending','2026-10-07 00:00:00','2026-10-15 07:44:14');
 INSERT INTO "companies" VALUES(11,'Infotype Ghana','https://infotypeghana.com','infotypeghana.com','consultancy','Accra, Ghana','local','ghana_based','https://infotypeghana.com/','',NULL,NULL,NULL,'generic_inbox_only','Pending','2026-10-07 00:00:00','2026-10-11 05:39:28');
 INSERT INTO "companies" VALUES(12,'Zilo','https://zilotechnologies.com','zilotechnologies.com','consultancy','Accra, Ghana','local','ghana_based','https://zilotechnologies.com/','',NULL,NULL,NULL,'people_found_no_email','Pending','2026-10-07 00:00:00','2026-10-11 05:39:28');
 INSERT INTO "companies" VALUES(13,'ThinkingTec','https://thinkingtec.com','thinkingtec.com','consultancy','Accra, Ghana','local','ghana_based','https://thinkingtec.com/','',NULL,NULL,NULL,'no_contact_found','Skipped','2026-10-07 00:00:00','2026-10-10 12:24:58');
@@ -334,7 +334,27 @@ INSERT INTO "companies" VALUES(92,'Kronix Shield','https://kronixshield.com','kr
 INSERT INTO "companies" VALUES(93,'VAS Cyber','https://vascyber.com','vascyber.com','consultancy','Accra, Ghana','local','ghana_based','https://vascyber.com/','',NULL,NULL,NULL,'no_contact_found','Skipped','2026-10-07 00:00:00','2026-10-10 12:24:58');
 INSERT INTO "companies" VALUES(94,'Cybershield','https://www.cybershield.com.gh','cybershield.com.gh','consultancy','Accra, Ghana','local','ghana_based','https://www.cybershield.com.gh/','',NULL,NULL,NULL,'no_contact_found','Skipped','2026-10-07 00:00:00','2026-10-10 12:24:58');
 INSERT INTO "companies" VALUES(95,'Lunar Tribe','https://www.lunartribe.tech','lunartribe.tech','consultancy','Accra, Ghana','local','ghana_based','https://www.lunartribe.tech/','',NULL,NULL,NULL,NULL,'Pending','2026-10-07 00:00:00','2026-10-10 12:24:58');
-INSERT INTO "companies" VALUES(96,'BigData Ghana','https://bigdataghana.com','bigdataghana.com','consultancy','Accra, Ghana','local','ghana_based','https://bigdataghana.com/','',NULL,NULL,NULL,NULL,'Pending','2026-10-07 00:00:00','2026-10-10 12:24:58');
+INSERT INTO "companies" VALUES(96,'BigData Ghana','https://bigdataghana.com','bigdataghana.com','consultancy','Accra, Ghana','local','ghana_based','https://bigdataghana.com/','','Summary:
+
+- What they do: BigData Ghana (BDG) is a Ghana-based GIS and geospatial intelligence company that converts geography, climate, and infrastructure data into decision-ready insights to help clients plan, build, invest, and operate with confidence. They focus on risk assessment, optimization, and growth planning using geospatial analysis.
+
+- Products/services they build:
+  - Geospatial intelligence and advanced GIS mapping/spatial analysis to reveal actionable insights (e.g., climate, infrastructure, operational risk).
+  - Cloud and data platforms: design, build, and manage cloud and data infrastructures to scale data capabilities.
+  - Data-enabled decision support: turning raw data into competitive decisions; data visualization and analytics for visibility, efficiency, and performance.
+  - Enterprise Solutions (ERP): integrated systems for finance, HR, inventory, and operations to streamline processes.
+  - Specific applications include flood modeling, yield prediction, real-time logistics, and national-scale spatial platforms.
+
+- Customers (types): Organizations seeking risk assessment, planning, and optimization across sectors (construction/build, infrastructure, logistics, finance, government/municipal planning, and enterprises needing ERP and data platforms). They position themselves as serving businesses and public sector needs in Ghana with geospatial intelligence.
+
+- Tech stack (inferred from offerings):
+  - Geospatial/GIS analytics and mapping tools (likely GIS software and spatial analysis capabilities).
+  - Cloud platforms and data engineering: cloud infrastructure design, data platforms, and scalable analytics.
+  - Data analytics, AI: cloud/AI-enabled analytics to extract insight from data.
+  - ERP systems for integrated finance, HR, and operations (enterprise software capabilities).
+  - Specialized models: flood modeling, yield prediction, real-time logistics, and national-scale spatial platforms.
+
+If you want, I can tailor this to a specific use case (e.g., for a construction firm evaluating site risk, or a logistics company exploring real-time routing).',NULL,'{"lead": "Client work rewards engineers who can drop into an unfamiliar setup and work out what the client actually needs. The harder part is leaving something that still runs after handover. Some of that work:", "bullets": [{"fact_id": "client-facing-delivery", "title": "Client-Facing Delivery", "text": "At Turing I exceeded client KPIs for data accuracy and volume, helping take the team to #1 in dataset quality on client-verified benchmarks; at BoaSoft I shipped a RAG platform built around the client''s own documents."}, {"fact_id": "infrastructure-as-code", "title": "Infrastructure as Code", "text": "I design scalable AWS environments with Terraform and Docker, including a secure multi-tier VPC and modular application layers, so environments are reproducible across clients."}, {"fact_id": "gitops-secrets", "title": "GitOps & Secrets", "text": "I implement GitOps delivery with Argo CD, treating Git as the single source of truth for cluster state, and inject runtime credentials from HashiCorp Vault to keep secrets out of images and repositories."}], "provider": "none", "model": "deterministic", "grounded": true, "fallback_reason": null, "generated_at": "2026-10-15 07:47:24"}',NULL,'Sent','2026-10-07 00:00:00','2026-10-15 07:48:19');
 INSERT INTO "companies" VALUES(97,'Beron Intelligence','https://beronintelligence.com','beronintelligence.com','consultancy','Accra, Ghana','local','ghana_based','https://beronintelligence.com/','',NULL,NULL,NULL,'people_found_no_email','Pending','2026-10-07 00:00:00','2026-10-11 05:39:28');
 INSERT INTO "companies" VALUES(98,'Codigits','https://codigits.com','codigits.com','consultancy','Accra, Ghana','local','ghana_based','https://codigits.com/data-analytics/','',NULL,NULL,NULL,'no_contact_found','Skipped','2026-10-07 00:00:00','2026-10-10 12:24:58');
 INSERT INTO "companies" VALUES(99,'Mogital Analytics','https://www.mogitalanalytics.com','mogitalanalytics.com','ai','Accra, Ghana','local','ghana_based','https://www.mogitalanalytics.com/','',NULL,NULL,NULL,'people_found_no_email','Pending','2026-10-07 00:00:00','2026-10-11 05:39:28');
@@ -427,7 +447,30 @@ Key takeaways
 - Focus on traceability and reliable sourcing with a digital marketplace for inputs and services.',NULL,'{"lead": "Startups need to ship fast without the platform falling over. Automating the slow, error-prone parts is how I make both possible:", "bullets": [{"fact_id": "infrastructure-velocity", "title": "Infrastructure Velocity", "text": "I provision production-ready AWS infrastructure with Terraform and Docker, including a secure multi-tier VPC and modular application layers."}, {"fact_id": "fast-feedback-loops", "title": "Fast Feedback Loops", "text": "I built a cost-optimized Jenkins CI/CD engine with EC2 Spot agents that auto-scale with build queue depth, speeding up developer feedback while cutting compute cost."}, {"fact_id": "developer-self-service", "title": "Developer Self-Service", "text": "I deployed Prometheus, Loki, Grafana, and Jaeger with self-service dashboards that give developers on-demand insight into their environments and error logs."}], "provider": "none", "model": "deterministic", "grounded": true, "fallback_reason": null, "generated_at": "2026-10-11 06:04:03"}',NULL,'Sent','2026-10-07 00:00:00','2026-10-11 06:44:04');
 INSERT INTO "companies" VALUES(107,'Farmerline','http://farmerline.co','farmerline.co','ai','Accra, Ghana','local','ghana_based','https://justfarm.ai/','',NULL,NULL,NULL,'no_contact_found','Skipped','2026-10-07 00:00:00','2026-10-10 12:24:58');
 INSERT INTO "companies" VALUES(108,'AGRISAT TECHNOLOGY','https://www.agrisattechnologies.com','agrisattechnologies.com','fintech','Accra, Ghana','local','ghana_based','https://www.agrisattechnologies.com/','',NULL,NULL,NULL,NULL,'Pending','2026-10-07 00:00:00','2026-10-10 12:24:58');
-INSERT INTO "companies" VALUES(109,'Sesi Technologies','https://sesitechnologies.com','sesitechnologies.com','general_startup','Accra, Ghana','local','ghana_based','https://sesitechnologies.com/','',NULL,NULL,NULL,NULL,'Pending','2026-10-07 00:00:00','2026-10-10 12:24:58');
+INSERT INTO "companies" VALUES(109,'Sesi Technologies','https://sesitechnologies.com','sesitechnologies.com','general_startup','Accra, Ghana','local','ghana_based','https://sesitechnologies.com/','','Sesi Technologies is a Ghana-based tech-enabled agribusiness focused on boosting productivity and income for African farmers and agribusinesses. They build and provide end-to-end, locally designed technologies and services to reduce post-harvest losses, improve storage and market access, and enable data-driven farming.
+
+What they do and the products/services they offer:
+- Post-harvest solutions for smallholder grain farmers: a suite of post-harvest technologies, mechanization services, and market access to reduce losses and raise income.
+- For agribusiness and processing: technologies to measure grain moisture, reduce storage losses, and boost productivity.
+- Digital marketplace: connects grain aggregators, traders, and suppliers to new markets and partners.
+- FarmSense soil intelligence platform: hardware, software, and AI-based soil testing and insights to help farmers and agribusinesses optimize yields.
+- GrainMate moisture measurement: handheld moisture meter to ensure grains are dry enough for storage.
+- GrainMate Warehouse Monitor: monitoring of warehouse temperature and humidity with mobile-accessible intelligent climate reports.
+- ZeroFly Hermetic Storage Bags: hermetic bags protecting stored grains/seeds from internal and external pests.
+
+Who their customers are:
+- Smallholder farmers and agribusinesses (agribusinesses, commodity traders, aggregators, feed producers, and food processing companies).
+- Grain traders and storage facilities that need moisture control and climate monitoring.
+- Farmers and agribusinesses seeking soil insights and data-driven decisions.
+
+Tech stack (explicit details limited in the provided content):
+- FarmSense platform: combines hardware, software, and AI for soil intelligence (no specific technologies listed).
+- GrainMate products: hardware tools (moisture meter and warehouse monitor) with a supporting app for data access and reporting.
+- Hermetic storage bags: physical product technology with hermetic inner layer for pest protection.
+- Digital marketplace: software platform to connect aggregators/traders with markets and suppliers.
+Note: The exact technical stack (programming languages, cloud providers, data platforms, etc.) is not specified in the provided materials.
+
+In short, Sesi Technologies builds affordable, locally designed hardware/software solutions for soil health, moisture and storage monitoring, post-harvest handling, and marketplace access, targeting smallholder farmers and agribusiness entities in Africa.',NULL,'{"lead": "Startups need to ship fast without the platform falling over. Automating the slow, error-prone parts is how I make both possible:", "bullets": [{"fact_id": "infrastructure-velocity", "title": "Infrastructure Velocity", "text": "I provision production-ready AWS infrastructure with Terraform and Docker, including a secure multi-tier VPC and modular application layers."}, {"fact_id": "fast-feedback-loops", "title": "Fast Feedback Loops", "text": "I built a cost-optimized Jenkins CI/CD engine with EC2 Spot agents that auto-scale with build queue depth, speeding up developer feedback while cutting compute cost."}, {"fact_id": "developer-self-service", "title": "Developer Self-Service", "text": "I deployed Prometheus, Loki, Grafana, and Jaeger with self-service dashboards that give developers on-demand insight into their environments and error logs."}], "provider": "none", "model": "deterministic", "grounded": true, "fallback_reason": null, "generated_at": "2026-10-15 07:47:02"}',NULL,'Sent','2026-10-07 00:00:00','2026-10-15 07:48:58');
 INSERT INTO "companies" VALUES(110,'Alster Limited','https://alstergh.com','alstergh.com','consultancy','Accra, Ghana','local','ghana_based','https://alstergh.com/','',NULL,NULL,NULL,'no_contact_found','Skipped','2026-10-07 00:00:00','2026-10-10 12:24:58');
 INSERT INTO "companies" VALUES(111,'Zerol Limited','https://www.zerolafrica.com','zerolafrica.com','general_startup','Accra, Ghana','local','ghana_based','https://www.zerolafrica.com/','',NULL,NULL,NULL,'no_contact_found','Skipped','2026-10-07 00:00:00','2026-10-10 12:24:58');
 INSERT INTO "companies" VALUES(112,'XCelerate AK','https://xcelerateak.com','xcelerateak.com','ai','Accra, Ghana','local','ghana_based','https://xcelerateak.com/','',NULL,NULL,NULL,'people_found_no_email','Pending','2026-10-07 00:00:00','2026-10-11 05:39:28');
@@ -643,6 +686,87 @@ INSERT INTO "companies" VALUES(127,'Protocol Labs','https://protocol.ai','protoc
   - Platform tooling and connective tissue to coordinate a large ecosystem (likely open-source, standards-based, interoperable components).
 
 If you want, I can tailor this to a specific aspect (e.g., detailed product roadmap, customer personas, or a Tech Stack diagram) or pull in more concrete project examples.',NULL,'{"lead": "Startups need to ship fast without the platform falling over. Automating the slow, error-prone parts is how I make both possible:", "bullets": [{"fact_id": "infrastructure-velocity", "title": "Infrastructure Velocity", "text": "I provision production-ready AWS infrastructure with Terraform and Docker, including a secure multi-tier VPC and modular application layers."}, {"fact_id": "fast-feedback-loops", "title": "Fast Feedback Loops", "text": "I built a cost-optimized Jenkins CI/CD engine with EC2 Spot agents that auto-scale with build queue depth, speeding up developer feedback while cutting compute cost."}, {"fact_id": "developer-self-service", "title": "Developer Self-Service", "text": "I deployed Prometheus, Loki, Grafana, and Jaeger with self-service dashboards that give developers on-demand insight into their environments and error logs."}], "provider": "none", "model": "deterministic", "grounded": true, "fallback_reason": null, "generated_at": "2026-10-15 07:07:15"}',NULL,'Sent','2026-10-15 07:03:35','2026-10-15 07:12:32');
+INSERT INTO "companies" VALUES(128,'WebSys Ghana Limited','https://www.facebook.com','facebook.com','consultancy','Ghana','local','ghana_based','https://www.businessghana.com/site/directory/software-development/it','',NULL,NULL,NULL,NULL,'Pending','2026-10-15 07:41:34','2026-10-15 07:41:34');
+INSERT INTO "companies" VALUES(129,'Boost','https://www.withboost.co','withboost.co','general_startup','','remote','explicit_ghana','https://jobgether.com/offer/6aa858b8b563ea142ea8efe3-senior-backend-engineer','https://jobgether.com/offer/6aa858b8b563ea142ea8efe3-senior-backend-engineer','Boost is a B2B commerce platform focused on Africa’s convenience economy. It digitizes and scales wholesale and retail operations across multiple markets using a single, flexible platform.
+
+What they do / products & services
+- B2B commerce platform for distributors, suppliers, and new brands
+- Effortless WhatsApp ordering to digitize demand
+- Data-light apps for fulfilment and payments management
+- Multi-language, multi-currency catalogues with channel- and territory-specific pricing
+- Stock financing through Stock Boosts and real-time analytics with actionable reports
+- On-the-ground onboarding and customer success teams in Egypt, Ghana, Kenya, and Nigeria
+- Digital pre-ordering, promotions, retailer insights to increase market access and reduce costs
+
+Who their customers are
+- Distributors (digitizing manual processes, integrating order management for retailer networks)
+- Suppliers (expanding market access and penetration via digital ordering and insights)
+- New brands (access to distributor/retailer networks, technology, and data insights)
+
+What’s notable about their technology / stack
+- A single, scalable platform designed to serve multiple markets with localization (languages, currencies) and multiple catalogues/prices
+- Support for channel-based and territory-based configurations
+- WhatsApp-based ordering and data-light apps for ease of use in low-connectivity contexts
+- Real-time analytics and reporting
+- Stock financing integration (Stock Boosts) to unlock growth
+- Local onboarding teams suggest a strong services/implementation layer complementing the platform
+
+Key takeaway: Boost provides a scalable, localized B2B commerce platform for Africa’s retail/distribution networks, combining digital ordering, fulfilment, payments, analytics, and financing to help distributors, suppliers, and brands grow in the convenience economy. Interested in partnerships or investment opportunities.',NULL,'{"lead": "Startups need to ship fast without the platform falling over. Automating the slow, error-prone parts is how I make both possible:", "bullets": [{"fact_id": "infrastructure-velocity", "title": "Infrastructure Velocity", "text": "I provision production-ready AWS infrastructure with Terraform and Docker, including a secure multi-tier VPC and modular application layers."}, {"fact_id": "fast-feedback-loops", "title": "Fast Feedback Loops", "text": "I built a cost-optimized Jenkins CI/CD engine with EC2 Spot agents that auto-scale with build queue depth, speeding up developer feedback while cutting compute cost."}, {"fact_id": "developer-self-service", "title": "Developer Self-Service", "text": "I deployed Prometheus, Loki, Grafana, and Jaeger with self-service dashboards that give developers on-demand insight into their environments and error logs."}], "provider": "none", "model": "deterministic", "grounded": true, "fallback_reason": null, "generated_at": "2026-10-15 07:47:28"}',NULL,'Sent','2026-10-15 07:41:49','2026-10-15 07:50:02');
+INSERT INTO "companies" VALUES(130,'Cosbyte','https://cosbyte.com','cosbyte.com','general_startup','','remote','explicit_ghana','https://cosbyte.com/job-fullstack.html','https://cosbyte.com/job-fullstack.html',NULL,NULL,NULL,NULL,'Pending','2026-10-15 07:42:49','2026-10-15 07:42:49');
+INSERT INTO "companies" VALUES(131,'ChainGPT','https://www.chaingpt.org','chaingpt.org','ai','','remote','africa_region','https://apply.workable.com/chaingpt/j/454A921D4B/','https://jobs.workable.com/company/nvh46VrdnJAJUewq6F6hE9/jobs-at-chaingpt',NULL,NULL,NULL,NULL,'Pending','2026-10-15 07:42:54','2026-10-15 07:42:54');
+INSERT INTO "companies" VALUES(132,'Bitovi','https://www.bitovi.com','bitovi.com','consultancy','','remote','explicit_ghana','https://bitovi.applytojob.com/apply/Ktw7pHEC3d/Offshore-Fullstack-Engineer-AI-Enabled','https://bitovi.applytojob.com/apply','Bitovi is a digital consultancy that partners with leading brands to design, build, and optimize complex web and software systems. They emphasize hands-on project management, scalable engineering, and DevOps across platforms.
+
+What they do (core services)
+- End-to-end product development and modernization for web apps and digital platforms
+- Microservices architecture, cloud-native deployments, and DevOps/CI-CD
+- UX, UI, and design systems (including scalable Figma design systems)
+- Discovery and product strategy, with guided redesigns and long-term ownership models
+- Migration and platform modernization (e.g., transitioning workflows to modern runtimes like Temporal Cloud)
+
+Products/services they build
+- Scalable e-commerce and ordering infrastructure (unified platforms across multiple brands)
+- Microservice-based backends and hybrid/Cloud-native deployments
+- High-availability workflow platforms (e.g., Temporal-based migrations)
+- Maintained design systems and frontend architectures for premium brands
+
+Customers highlighted
+- Yum brands (KFC, Taco Bell, Pizza Hut, Habit Burger Grill) for a unified ordering platform
+- Coinbase, for migrating 300+ namespaces/services to Temporal Cloud without downtime
+- Christie’s, for a prestige-focused website redesign and scalable design system
+
+Tech stack (implied from case highlights)
+- Microservices architecture and DevOps tooling
+- Temporal Cloud (and temporal-based workflows)
+- Private networking and encrypted payloads (security-focused deployments)
+- Web/mobile/web-aggregator integrations for unified ordering
+- Design systems and modern frontend design (Figma-based system)
+- Scalable infrastructure to support multiple brands and high-traffic sites
+
+In short, Bitovi is a high-end digital transformation partner that builds scalable web and backend platforms, migrates complex workflow systems to modern runtimes, and delivers design-driven, maintainable experiences for large consumer brands and fintechs.',NULL,'{"lead": "Client work rewards engineers who can drop into an unfamiliar setup and work out what the client actually needs. The harder part is leaving something that still runs after handover. Some of that work:", "bullets": [{"fact_id": "client-facing-delivery", "title": "Client-Facing Delivery", "text": "At Turing I exceeded client KPIs for data accuracy and volume, helping take the team to #1 in dataset quality on client-verified benchmarks; at BoaSoft I shipped a RAG platform built around the client''s own documents."}, {"fact_id": "infrastructure-as-code", "title": "Infrastructure as Code", "text": "I design scalable AWS environments with Terraform and Docker, including a secure multi-tier VPC and modular application layers, so environments are reproducible across clients."}, {"fact_id": "gitops-secrets", "title": "GitOps & Secrets", "text": "I implement GitOps delivery with Argo CD, treating Git as the single source of truth for cluster state, and inject runtime credentials from HashiCorp Vault to keep secrets out of images and repositories."}], "provider": "none", "model": "deterministic", "grounded": true, "fallback_reason": null, "generated_at": "2026-10-15 07:47:31"}',NULL,'Sent','2026-10-15 07:42:59','2026-10-15 07:50:48');
+INSERT INTO "companies" VALUES(133,'OpenFn','http://www.openfn.org','openfn.org','general_startup','','remote','africa_region','https://jobs.workable.com/view/jRkT98KafNLJ4cuBUkiaF7/remote-principal-software-engineer-in-south-africa-at-openfn','https://www.openfn.org/careers','OpenFn provides an open-source, developer-friendly workflow automation platform designed for public sector and NGO use. Key points:
+
+- What they do: Connects web apps, AI tools, registries, databases, and legacy systems to automate delivery of public services. Aims to help governments and NGOs modernize and scale digital public services with AI-enabled orchestration and end-to-end automation.
+- Products/services: 
+  - OpenFn Workflow Automation Platform (visual Workflow Builder) for building cross-system automations.
+  - 100+ pre-built Adaptors to connect to apps, web APIs, databases, file exports (open source).
+  - OpenFn-hosted SaaS option and full on-premise deployment (100% open source; portable across deployments).
+  - Dev tools: CLI, Smart IDE, open source docs/community for rapid development.
+  - Monitoring and reliability: centralized history, audit trails, failure retries, 24/7 monitoring, fault-tolerant, auto-healing, auto-scaling.
+  - Deployment and support options: expert deployment help, managed services, enterprise support, partner network.
+  - Data and security emphasis: trusted by governments and NGOs; emphasizes secure, reliable, scalable, standards-based solutions; protection of beneficiary data.
+- Customers: Governments and NGOs worldwide (40+ countries), including public service deployments and Digital Public Goods ecosystems. They work with government digital transformation teams and NGOs.
+- Tech stack / architecture: 
+  - Open source software core (platform + docs) with 70+ open source Adaptors for various integrations.
+  - Visual workflow builder for designing automations; code-friendly for complex logic.
+  - Version control, locking, idempotent API services.
+  - Infrastructure features: queue-based processing, fault-tolerant architecture, auto-healing, auto-scaling.
+  - Deployment flexibility: hosted SaaS or on-premise/server deployments; cross-cloud/ on-prem portability.
+  - Monitoring and auditing: comprehensive history, audit trails, failure retry mechanisms.
+  
+In short: OpenFn is an open-source, developer-centric workflow automation platform that links diverse apps and data sources to automate public services for governments and NGOs, offering a visual builder, 70+ adapters, deployment flexibility (SaaS or on-prem), strong reliability/security features, and enterprise support.',NULL,'{"lead": "Startups need to ship fast without the platform falling over. Automating the slow, error-prone parts is how I make both possible:", "bullets": [{"fact_id": "infrastructure-velocity", "title": "Infrastructure Velocity", "text": "I provision production-ready AWS infrastructure with Terraform and Docker, including a secure multi-tier VPC and modular application layers."}, {"fact_id": "fast-feedback-loops", "title": "Fast Feedback Loops", "text": "I built a cost-optimized Jenkins CI/CD engine with EC2 Spot agents that auto-scale with build queue depth, speeding up developer feedback while cutting compute cost."}, {"fact_id": "developer-self-service", "title": "Developer Self-Service", "text": "I deployed Prometheus, Loki, Grafana, and Jaeger with self-service dashboards that give developers on-demand insight into their environments and error logs."}], "provider": "none", "model": "deterministic", "grounded": true, "fallback_reason": null, "generated_at": "2026-10-15 07:47:36"}',NULL,'Sent','2026-10-15 07:43:08','2026-10-15 07:51:32');
+INSERT INTO "companies" VALUES(134,'Anablock','https://anablock.com','anablock.com','ai','','remote','explicit_ghana','https://bebee.com/gh/jobs/ai-ml-software-engineer-remote-ghana-anablock--theirstack-666797714','https://nextleap.app/company/anablock/jobs',NULL,NULL,NULL,NULL,'Pending','2026-10-15 07:43:13','2026-10-15 07:43:13');
+INSERT INTO "companies" VALUES(135,'BLVCK SAPPHIRE','https://www.blvcksapphire.com','blvcksapphire.com','ai','','remote','explicit_ghana','https://relomote.com/jobs/frontend-engineer-mobile-web-190759558','https://www.blvcksapphire.com/careers',NULL,NULL,NULL,NULL,'Pending','2026-10-15 07:43:18','2026-10-15 07:43:18');
+INSERT INTO "companies" VALUES(136,'Mirantly','https://www.mirantly.com','mirantly.com','ai','','remote','explicit_ghana','https://techjobsinghana.com/tjig-jobs/founding-senior-software-engineer/','https://www.mirantly.com/careers',NULL,NULL,NULL,NULL,'Pending','2026-10-15 07:43:22','2026-10-15 07:44:27');
 CREATE TABLE contacts (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         company_id INTEGER NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
@@ -787,10 +911,10 @@ INSERT INTO "contacts" VALUES(135,90,'Ryan Michael','Other Person','ryanmichael@
 INSERT INTO "contacts" VALUES(136,91,'Jonathan Asamoah','IT Support Intern','jasamoah@slammghana.com','hunter',99,'unknown','person',0,'2026-10-11 05:32:28','2026-10-11 05:32:28');
 INSERT INTO "contacts" VALUES(137,91,'Stella Asiedua','Other Person','sasiedua@slammghana.com','hunter',98,'valid','person',1,'2026-10-11 05:32:28','2026-10-11 05:32:28');
 INSERT INTO "contacts" VALUES(138,95,'Nutifafa Amedior','Business Intelligence Lead','nutifafa.amedior@lunartribe.tech','hunter',95,'valid','person',1,'2026-10-11 05:32:28','2026-10-11 05:32:28');
-INSERT INTO "contacts" VALUES(139,96,'Henry Baffoe','Managing Director','henry.baffoe@bigdataghana.com','hunter',96,'valid','person',0,'2026-10-11 05:32:28','2026-10-11 05:32:28');
+INSERT INTO "contacts" VALUES(139,96,'Henry Baffoe','Managing Director & Co-Founder','henry.baffoe@bigdataghana.com','hunter',96,'valid','person',1,'2026-10-11 05:32:28','2026-10-11 05:32:28');
 INSERT INTO "contacts" VALUES(140,96,'Yaa Fordwour','Finance and Administration Manager','yaa.fordwour@bigdataghana.com','hunter',95,'valid','person',0,'2026-10-11 05:32:28','2026-10-11 05:32:28');
 INSERT INTO "contacts" VALUES(141,96,'Emmanuel Kyei-Baffour','Cloud Support Engineer','emmanuel.kyei-baffour@bigdataghana.com','hunter',99,'unknown','person',0,'2026-10-11 05:32:28','2026-10-11 05:32:28');
-INSERT INTO "contacts" VALUES(142,96,'Isaac Kwarteng','AI Engineer','isaac@bigdataghana.com','hunter',99,'valid','person',1,'2026-10-11 05:32:28','2026-10-11 05:32:28');
+INSERT INTO "contacts" VALUES(142,96,'Isaac Kwarteng','AI Engineer','isaac@bigdataghana.com','hunter',99,'valid','person',0,'2026-10-11 05:32:28','2026-10-11 05:32:28');
 INSERT INTO "contacts" VALUES(143,96,'Gertrude Chichi','Cloud Support Engineer','gertrude.chichi@bigdataghana.com','hunter',98,'valid','person',0,'2026-10-11 05:32:28','2026-10-11 05:32:28');
 INSERT INTO "contacts" VALUES(144,96,'Akwasi Anto','Data and AI Engineer','akwasi.anto@bigdataghana.com','hunter',97,'valid','person',0,'2026-10-11 05:32:28','2026-10-11 05:32:28');
 INSERT INTO "contacts" VALUES(145,102,'Nayram Mensah','Chief Technology Officer','nayram@myfigtech.com','hunter',95,'valid','person',1,'2026-10-11 05:32:28','2026-10-11 05:32:28');
@@ -800,7 +924,7 @@ INSERT INTO "contacts" VALUES(148,109,'Cynthia Antwi','Head Of Operations & HR',
 INSERT INTO "contacts" VALUES(149,109,'Emmanuel Kyei','Director of Business Development','emmanuel@sesitechnologies.com','hunter',79,'valid','person',0,'2026-10-11 05:32:28','2026-10-11 05:32:28');
 INSERT INTO "contacts" VALUES(150,109,'Martin Avorgah','Hardware Development Engineer','martin@sesitechnologies.com','hunter',78,'valid','person',0,'2026-10-11 05:32:28','2026-10-11 05:32:28');
 INSERT INTO "contacts" VALUES(151,109,'Pauline Atikpo','Executive Assistant','pauline@sesitechnologies.com','hunter',42,'unknown','person',0,'2026-10-11 05:32:28','2026-10-11 05:32:28');
-INSERT INTO "contacts" VALUES(152,109,'Isaac Sesi','Other Person','isaac@sesitechnologies.com','hunter',85,'valid','person',1,'2026-10-11 05:32:28','2026-10-11 05:32:28');
+INSERT INTO "contacts" VALUES(152,109,'Isaac Sesi','Founder and CEO','isaac@sesitechnologies.com','hunter',85,'valid','person',1,'2026-10-11 05:32:28','2026-10-11 05:32:28');
 INSERT INTO "contacts" VALUES(153,117,'Kwadwo Twum','Data Analyst','kwadwotwum@abeyiestudios.com','hunter',79,'unknown','person',0,'2026-10-11 05:32:29','2026-10-11 05:32:29');
 INSERT INTO "contacts" VALUES(154,117,'Joycelyn Adjei','Sherock Participant','joycelynadjei@abeyiestudios.com','hunter',79,'unknown','person',0,'2026-10-11 05:32:29','2026-10-11 05:32:29');
 INSERT INTO "contacts" VALUES(155,117,NULL,'Other Person','abeyieschmutz@abeyiestudios.com','hunter',75,'unknown','person',0,'2026-10-11 05:32:29','2026-10-11 05:32:29');
@@ -880,6 +1004,38 @@ INSERT INTO "contacts" VALUES(228,122,'Ananya Roy','Project Manager','ananya@zet
 INSERT INTO "contacts" VALUES(229,122,'Karthick T','HR and Finance Associate','karthick@zethic.com','hunter',77,'unknown','person',0,'2026-10-15 07:06:09','2026-10-15 07:06:09');
 INSERT INTO "contacts" VALUES(230,122,'Magithar Sridhar','Product Manager','magithar@zethic.com','hunter',77,'valid','person',0,'2026-10-15 07:06:09','2026-10-15 07:06:09');
 INSERT INTO "contacts" VALUES(231,125,NULL,'Generic Inbox','contact@direktdot.com','apify',NULL,'unknown','generic',0,'2026-10-15 07:06:36','2026-10-15 07:06:36');
+INSERT INTO "contacts" VALUES(232,129,'Will Croft','Co-Founder and CTO','will@withboost.co','prospeo',NULL,'valid','person',1,'2026-10-15 07:42:06','2026-10-15 07:42:06');
+INSERT INTO "contacts" VALUES(233,129,'Mary Roach','Co-Founder and COO','mary@boost.technology','prospeo',NULL,'valid','person',0,'2026-10-15 07:42:06','2026-10-15 07:42:06');
+INSERT INTO "contacts" VALUES(234,132,'Paul Herzog','Director of Agile Project Management','pherzog@bitovi.com','hunter',85,'unknown','person',0,'2026-10-15 07:44:42','2026-10-15 07:44:42');
+INSERT INTO "contacts" VALUES(235,132,'Levi Myers','Director of Product Design','levi@bitovi.com','hunter',84,'unknown','person',0,'2026-10-15 07:44:42','2026-10-15 07:44:42');
+INSERT INTO "contacts" VALUES(236,132,'Kyle Gifford','Director of Consulting','kyle@bitovi.com','hunter',84,'valid','person',0,'2026-10-15 07:44:42','2026-10-15 07:44:42');
+INSERT INTO "contacts" VALUES(237,132,'Chasen Hara','Learning and Development Manager','chasen@bitovi.com','hunter',84,'unknown','person',0,'2026-10-15 07:44:42','2026-10-15 07:44:42');
+INSERT INTO "contacts" VALUES(238,132,'Mick Mcgrath','Director of Artificial Intelligence','mick@bitovi.com','hunter',83,'valid','person',0,'2026-10-15 07:44:42','2026-10-15 07:44:42');
+INSERT INTO "contacts" VALUES(239,132,'Kevin Phillips','Director of Engineering','kevin@bitovi.com','hunter',82,'valid','person',1,'2026-10-15 07:44:42','2026-10-15 07:44:42');
+INSERT INTO "contacts" VALUES(240,132,'Justin Meyer','Chief Executive Officer','justin@bitovi.com','hunter',81,'valid','person',0,'2026-10-15 07:44:42','2026-10-15 07:44:42');
+INSERT INTO "contacts" VALUES(241,132,'Brian Tai','Sales Director','btai@bitovi.com','hunter',75,'unknown','person',0,'2026-10-15 07:44:42','2026-10-15 07:44:42');
+INSERT INTO "contacts" VALUES(242,132,'Paula Strozak','Chief Operating Officer','paula@bitovi.com','hunter',75,'valid','person',0,'2026-10-15 07:44:42','2026-10-15 07:44:42');
+INSERT INTO "contacts" VALUES(243,132,NULL,'Other Person','kosborn@bitovi.com','hunter',85,'unknown','person',0,'2026-10-15 07:44:42','2026-10-15 07:44:42');
+INSERT INTO "contacts" VALUES(244,133,'Taylor Downs','Founder','taylor@openfn.org','hunter',85,'valid','person',0,'2026-10-15 07:44:48','2026-10-15 07:44:48');
+INSERT INTO "contacts" VALUES(245,133,'Brandon Jackson','Head of Product','brandon@openfn.org','hunter',85,'unknown','person',0,'2026-10-15 07:44:48','2026-10-15 07:44:48');
+INSERT INTO "contacts" VALUES(246,133,'Aleksa Krolls','Chief Operating Officer','aleksa@openfn.org','hunter',85,'valid','person',0,'2026-10-15 07:44:48','2026-10-15 07:44:48');
+INSERT INTO "contacts" VALUES(247,133,'Bailly Rurangirwa','Growth Manager','bailly@openfn.org','hunter',79,'valid','person',0,'2026-10-15 07:44:48','2026-10-15 07:44:48');
+INSERT INTO "contacts" VALUES(248,133,'Derek Treatman','Director of Innovation and Partnerships','derek@openfn.org','hunter',79,'valid','person',0,'2026-10-15 07:44:48','2026-10-15 07:44:48');
+INSERT INTO "contacts" VALUES(249,133,'Stuart Corbishley','Chief Technology Officer','stuart@openfn.org','hunter',79,'valid','person',1,'2026-10-15 07:44:48','2026-10-15 07:44:48');
+INSERT INTO "contacts" VALUES(250,133,'Catherine Sieberhagen','Head of Implementation','catherine@openfn.org','hunter',78,'valid','person',0,'2026-10-15 07:44:48','2026-10-15 07:44:48');
+INSERT INTO "contacts" VALUES(251,133,'Jack Hilton','Head of Growth','jack@openfn.org','hunter',78,'valid','person',0,'2026-10-15 07:44:48','2026-10-15 07:44:48');
+INSERT INTO "contacts" VALUES(252,133,'Precious Nwiko','Country Lead','precious@openfn.org','hunter',85,'unknown','person',0,'2026-10-15 07:44:48','2026-10-15 07:44:48');
+INSERT INTO "contacts" VALUES(253,133,'Pius Kariuki','Solutions Engineer','pius@openfn.org','hunter',85,'valid','person',0,'2026-10-15 07:44:48','2026-10-15 07:44:48');
+INSERT INTO "contacts" VALUES(254,131,'Mitchell G','Chief Human Resources Officer','mitchell@chaingpt.org','hunter',98,'valid','person',0,'2026-10-15 07:45:11','2026-10-15 07:45:11');
+INSERT INTO "contacts" VALUES(255,131,'Vlad Nazar','Head of Business Development','vladnazar@chaingpt.org','hunter',97,'valid','person',0,'2026-10-15 07:45:11','2026-10-15 07:45:11');
+INSERT INTO "contacts" VALUES(256,131,'Cameron French','Chief Compliance Officer','cameron@chaingpt.org','hunter',99,'valid','person',0,'2026-10-15 07:45:11','2026-10-15 07:45:11');
+INSERT INTO "contacts" VALUES(257,131,'Uthman Sulyman','Community Manager','uthman@chaingpt.org','hunter',98,'valid','person',0,'2026-10-15 07:45:11','2026-10-15 07:45:11');
+INSERT INTO "contacts" VALUES(258,131,NULL,'Other Person','gintare@chaingpt.org','hunter',96,'valid','person',0,'2026-10-15 07:45:11','2026-10-15 07:45:11');
+INSERT INTO "contacts" VALUES(259,131,NULL,'Other Person','ariel@chaingpt.org','hunter',96,'valid','person',0,'2026-10-15 07:45:11','2026-10-15 07:45:11');
+INSERT INTO "contacts" VALUES(260,131,NULL,'Other Person','rosemary@chaingpt.org','hunter',84,'unknown','person',0,'2026-10-15 07:45:11','2026-10-15 07:45:11');
+INSERT INTO "contacts" VALUES(261,131,'Ilan Rakhmanov','Other Person','ilan@chaingpt.org','hunter',99,'valid','person',0,'2026-10-15 07:45:11','2026-10-15 07:45:11');
+INSERT INTO "contacts" VALUES(262,131,'Muhammad Adnan Tariq','Chief Technology Officer','adnan@chaingpt.org','hunter',96,'valid','person',1,'2026-10-15 07:45:11','2026-10-15 07:45:11');
+INSERT INTO "contacts" VALUES(263,130,'Archurst Agyarko','CEO','archurst@cosbyte.com','hunter',81,'unknown','person',1,'2026-10-15 07:45:16','2026-10-15 07:45:16');
 CREATE TABLE inbox_events (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         kind TEXT NOT NULL CHECK(kind IN ('reply', 'bounce', 'auto_reply', 'unsubscribe')),
@@ -1488,6 +1644,126 @@ Portfolio: https://ioenimil.me
 LinkedIn: https://www.linkedin.com/in/isaacoboenimil/
 GitHub: https://github.com/ioenimil
 ');
+INSERT INTO "outreaches" VALUES(68,96,139,'henry.baffoe@bigdataghana.com','initial','Forward Deployed / Platform Engineer Application - Isaac Obo Enimil','<179205049392.1488564.9137220264078081753@gmail.com>',NULL,NULL,'SUCCESS',NULL,'2026-10-15 07:48:19','generated_letters/Isaac_Obo_Enimil_Cover_Letter_BigData_Ghana.pdf','Dear Henry,
+
+My name is Isaac Obo Enimil. I''m a Platform Engineer (DevOps) at AmaliTech Services GmbH and a Computer Engineering graduate of KNUST, with the AWS Certified Solutions Architect – Associate and Kubernetes and Cloud Native Associate (KCNA) certifications. Alongside the platform work, I build and ship applied AI systems for clients.
+
+I''d like to be considered for Forward Deployed / Platform Engineer work at BigData Ghana. My CV is attached, along with a cover letter written for BigData Ghana.
+
+Some of my work:
+- At Turing I exceeded client KPIs for data accuracy and volume, helping take the team to #1 in dataset quality on client-verified benchmarks; at BoaSoft I shipped a RAG platform built around the client''s own documents.
+- I design scalable AWS environments with Terraform and Docker, including a secure multi-tier VPC and modular application layers, so environments are reproducible across clients.
+- I implement GitOps delivery with Argo CD, treating Git as the single source of truth for cluster state, and inject runtime credentials from HashiCorp Vault to keep secrets out of images and repositories.
+
+If it''s useful, I''d be glad to have a short call with someone on your team or one of your engineering leads.
+
+Thanks for reading.
+
+Best regards,
+
+Isaac Obo Enimil
+Kumasi, Ghana
+Phone: +233 59 794 4747
+Portfolio: https://ioenimil.me
+LinkedIn: https://www.linkedin.com/in/isaacoboenimil/
+GitHub: https://github.com/ioenimil
+');
+INSERT INTO "outreaches" VALUES(69,109,152,'isaac@sesitechnologies.com','initial','Platform & DevOps Engineer Application - Isaac Obo Enimil','<179205053367.1488564.7399074528158371373@gmail.com>',NULL,NULL,'SUCCESS',NULL,'2026-10-15 07:48:58','generated_letters/Isaac_Obo_Enimil_Cover_Letter_Sesi_Technologies.pdf','Dear Isaac,
+
+My name is Isaac Obo Enimil. I''m a Platform Engineer (DevOps) at AmaliTech Services GmbH and a Computer Engineering graduate of KNUST, with the AWS Certified Solutions Architect – Associate and Kubernetes and Cloud Native Associate (KCNA) certifications. Alongside the platform work, I build and ship applied AI systems for clients.
+
+I''d like to be considered for Platform & DevOps Engineer work at Sesi Technologies. My CV is attached, along with a cover letter written for Sesi Technologies.
+
+Some of my work:
+- I provision production-ready AWS infrastructure with Terraform and Docker, including a secure multi-tier VPC and modular application layers.
+- I built a cost-optimized Jenkins CI/CD engine with EC2 Spot agents that auto-scale with build queue depth, speeding up developer feedback while cutting compute cost.
+- I deployed Prometheus, Loki, Grafana, and Jaeger with self-service dashboards that give developers on-demand insight into their environments and error logs.
+
+If it''s useful, I''d be glad to have a short call with someone on your team or one of your engineering leads.
+
+Thanks for reading.
+
+Best regards,
+
+Isaac Obo Enimil
+Kumasi, Ghana
+Phone: +233 59 794 4747
+Portfolio: https://ioenimil.me
+LinkedIn: https://www.linkedin.com/in/isaacoboenimil/
+GitHub: https://github.com/ioenimil
+');
+INSERT INTO "outreaches" VALUES(70,129,232,'will@withboost.co','initial','Platform & DevOps Engineer Application - Isaac Obo Enimil','<179205059872.1488564.792536724121671775@gmail.com>',NULL,NULL,'SUCCESS',NULL,'2026-10-15 07:50:02','generated_letters/Isaac_Obo_Enimil_Cover_Letter_Boost.pdf','Dear Will,
+
+My name is Isaac Obo Enimil. I''m a Platform Engineer (DevOps) at AmaliTech Services GmbH and a Computer Engineering graduate of KNUST, with the AWS Certified Solutions Architect – Associate and Kubernetes and Cloud Native Associate (KCNA) certifications. Alongside the platform work, I build and ship applied AI systems for clients.
+
+I''d like to be considered for Platform & DevOps Engineer work at Boost. My CV is attached, along with a cover letter written for Boost.
+
+Some of my work:
+- I provision production-ready AWS infrastructure with Terraform and Docker, including a secure multi-tier VPC and modular application layers.
+- I built a cost-optimized Jenkins CI/CD engine with EC2 Spot agents that auto-scale with build queue depth, speeding up developer feedback while cutting compute cost.
+- I deployed Prometheus, Loki, Grafana, and Jaeger with self-service dashboards that give developers on-demand insight into their environments and error logs.
+
+If it''s useful, I''d be glad to have a short call with someone on your team or one of your engineering leads.
+
+Thanks for reading.
+
+Best regards,
+
+Isaac Obo Enimil
+Kumasi, Ghana
+Phone: +233 59 794 4747
+Portfolio: https://ioenimil.me
+LinkedIn: https://www.linkedin.com/in/isaacoboenimil/
+GitHub: https://github.com/ioenimil
+');
+INSERT INTO "outreaches" VALUES(71,132,239,'kevin@bitovi.com','initial','Forward Deployed / Platform Engineer Application - Isaac Obo Enimil','<179205064473.1488564.5050657526624140056@gmail.com>',NULL,NULL,'SUCCESS',NULL,'2026-10-15 07:50:48','generated_letters/Isaac_Obo_Enimil_Cover_Letter_Bitovi.pdf','Dear Kevin,
+
+My name is Isaac Obo Enimil. I''m a Platform Engineer (DevOps) at AmaliTech Services GmbH and a Computer Engineering graduate of KNUST, with the AWS Certified Solutions Architect – Associate and Kubernetes and Cloud Native Associate (KCNA) certifications. Alongside the platform work, I build and ship applied AI systems for clients.
+
+I''d like to be considered for Forward Deployed / Platform Engineer work at Bitovi. My CV is attached, along with a cover letter written for Bitovi.
+
+Some of my work:
+- At Turing I exceeded client KPIs for data accuracy and volume, helping take the team to #1 in dataset quality on client-verified benchmarks; at BoaSoft I shipped a RAG platform built around the client''s own documents.
+- I design scalable AWS environments with Terraform and Docker, including a secure multi-tier VPC and modular application layers, so environments are reproducible across clients.
+- I implement GitOps delivery with Argo CD, treating Git as the single source of truth for cluster state, and inject runtime credentials from HashiCorp Vault to keep secrets out of images and repositories.
+
+If it''s useful, I''d be glad to have a short call with someone on your team or one of your engineering leads.
+
+Thanks for reading.
+
+Best regards,
+
+Isaac Obo Enimil
+Kumasi, Ghana
+Phone: +233 59 794 4747
+Portfolio: https://ioenimil.me
+LinkedIn: https://www.linkedin.com/in/isaacoboenimil/
+GitHub: https://github.com/ioenimil
+');
+INSERT INTO "outreaches" VALUES(72,133,249,'stuart@openfn.org','initial','Platform & DevOps Engineer Application - Isaac Obo Enimil','<179205068881.1488564.17080974193168705288@gmail.com>',NULL,NULL,'SUCCESS',NULL,'2026-10-15 07:51:32','generated_letters/Isaac_Obo_Enimil_Cover_Letter_OpenFn.pdf','Dear Stuart,
+
+My name is Isaac Obo Enimil. I''m a Platform Engineer (DevOps) at AmaliTech Services GmbH and a Computer Engineering graduate of KNUST, with the AWS Certified Solutions Architect – Associate and Kubernetes and Cloud Native Associate (KCNA) certifications. Alongside the platform work, I build and ship applied AI systems for clients.
+
+I''d like to be considered for Platform & DevOps Engineer work at OpenFn. My CV is attached, along with a cover letter written for OpenFn.
+
+Some of my work:
+- I provision production-ready AWS infrastructure with Terraform and Docker, including a secure multi-tier VPC and modular application layers.
+- I built a cost-optimized Jenkins CI/CD engine with EC2 Spot agents that auto-scale with build queue depth, speeding up developer feedback while cutting compute cost.
+- I deployed Prometheus, Loki, Grafana, and Jaeger with self-service dashboards that give developers on-demand insight into their environments and error logs.
+
+If it''s useful, I''d be glad to have a short call with someone on your team or one of your engineering leads.
+
+Thanks for reading.
+
+Best regards,
+
+Isaac Obo Enimil
+Kumasi, Ghana
+Phone: +233 59 794 4747
+Portfolio: https://ioenimil.me
+LinkedIn: https://www.linkedin.com/in/isaacoboenimil/
+GitHub: https://github.com/ioenimil
+');
 CREATE TABLE people (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         company_id INTEGER NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
@@ -1618,14 +1894,16 @@ INSERT INTO "people" VALUES(116,126,'Matt Machuga','VP Engineering','https://lin
 INSERT INTO "people" VALUES(117,126,'Jakub Kratina','Director of Engineering','https://linkedin.com/in/jakub-kratina-b5972549','exa',220,'2026-10-15 07:05:20');
 INSERT INTO "people" VALUES(118,121,'Shahnavaz Syed','Founder','https://www.huraintechnologies.com/about','exa',NULL,'2026-10-15 07:05:53');
 INSERT INTO "people" VALUES(119,121,'Dinesh Prajapati','Leads the Hurain Technologies development team','https://www.huraintechnologies.com/about','exa',NULL,'2026-10-15 07:05:53');
+INSERT INTO "people" VALUES(120,131,'Muhammad Adnan Tariq','Chief Technology Officer','https://linkedin.com/in/madnantariq','exa',262,'2026-10-15 07:45:11');
+INSERT INTO "people" VALUES(121,131,'Ilan Rakhmanov','Founder & CEO','https://linkedin.com/in/ceoguy','exa',261,'2026-10-15 07:45:11');
 CREATE INDEX idx_companies_domain ON companies(domain);
 CREATE UNIQUE INDEX idx_contacts_primary
     ON contacts(company_id)
     WHERE is_primary = 1;
 DELETE FROM "sqlite_sequence";
-INSERT INTO "sqlite_sequence" VALUES('companies',127);
-INSERT INTO "sqlite_sequence" VALUES('contacts',231);
-INSERT INTO "sqlite_sequence" VALUES('outreaches',67);
+INSERT INTO "sqlite_sequence" VALUES('companies',136);
+INSERT INTO "sqlite_sequence" VALUES('contacts',263);
+INSERT INTO "sqlite_sequence" VALUES('outreaches',72);
 INSERT INTO "sqlite_sequence" VALUES('inbox_events',11);
-INSERT INTO "sqlite_sequence" VALUES('people',119);
+INSERT INTO "sqlite_sequence" VALUES('people',121);
 COMMIT;
