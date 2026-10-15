@@ -4,12 +4,14 @@ Decision-maker enrichment waterfall (Workstream B).
 Waterfall per company:
 1. Hunter.io Domain Search (type=personal, filter target roles)
 2. Prospeo (find decision-makers if Hunter empty, and/or verify Hunter's best email)
-3. Apify fallback (batch URLs, classify departmental vs generic, drop non-hiring/foreign)
+3. Exa people search for named leaders/hiring staff (names only), then Hunter Email Finder for the best two
+4. Apify fallback (batch URLs, classify departmental vs generic, drop non-hiring/foreign)
 """
 
 import os
 import sys
 import re
+import time
 import argparse
 import urllib.parse
 import requests
@@ -21,10 +23,15 @@ from exa_search import ExaSearch
 # Module constants
 HUNTER_BASE_URL = "https://api.hunter.io/v2"
 HUNTER_DOMAIN_SEARCH_PATH = "/domain-search"
+HUNTER_EMAIL_FINDER_PATH = "/email-finder"
+HUNTER_MIN_FINDER_SCORE = 70  # below this (and unverified) a found address is a guess, and guesses bounce
 
 PROSPEO_BASE_URL = "https://api.prospeo.io"
 PROSPEO_SEARCH_PERSON_PATH = "/search-person"
 PROSPEO_ENRICH_PERSON_PATH = "/enrich-person"
+PROSPEO_MAX_LOOKUPS = 2  # per company, on the free plan's 100 credits
+PROSPEO_MIN_INTERVAL = 3.1  # seconds between requests; the free plan allows 1/s, 20/min and 50/day
+PROSPEO_RETRY_WAIT = 20  # one retry after a 429 before giving up on Prospeo for the run
 
 NON_HIRING_INBOXES = [
     "support", "sales", "privacy", "press", "media", "legal", "noreply", "no-reply",
@@ -37,15 +44,9 @@ PLACEHOLDER_EMAIL_DOMAINS = [
     "youremail.com", "yourdomain.com"
 ]
 
-DEPARTMENTAL_INBOXES = {
-    "recruiting", "recruitment", "careers", "jobs", "hr", "talent", "people",
-    "hiring", "tech", "engineering", "dev"
-}
-
-GENERIC_INBOXES = {
-    "info", "hello", "contact", "office", "admin", "enquiries", "inquiries",
-    "mail", "team"
-}
+# Shared-inbox vocabulary lives in db so the v3 migration and the enricher classify addresses the same way
+DEPARTMENTAL_INBOXES = db.DEPARTMENTAL_INBOXES
+GENERIC_INBOXES = db.GENERIC_INBOXES
 
 NON_HIRING_TITLE_PATTERN = re.compile(
     r"\b(sales|marketing|support|finance|legal|operations|operational|customer\s+success|account|accounting|accountant)\b",
@@ -118,6 +119,10 @@ def classify_title(title):
         re.search(r"talent\s+acquisition\s+(lead|head|director|manager)", t) or
         re.search(r"(lead|head|director)\s+of\s+talent\s+acquisition", t) or
         re.search(r"\btalent\s+acquisition\b", t) or
+        re.search(r"\btalent\s+(director|manager|lead|partner)\b", t) or
+        re.search(r"head\s+of\s+(people|hr|human\s+resources)", t) or
+        re.search(r"\b(hr|human\s+resources|people)\s+(director|manager|lead|business\s+partner)\b", t) or
+        re.search(r"\b(recruiter|recruiting\s+manager|recruitment\s+manager)\b", t) or
         re.search(r"recruit(ing|ment)\s+lead", t) or
         re.search(r"lead\s+recruiter", t)):
         return 4, "Head of Talent / Recruiting Lead"
@@ -160,11 +165,29 @@ class ProspeoClient:
     Prospeo API adapter class.
     Endpoints and base URL are module constants. Authenticates via X-KEY header.
     """
-    def __init__(self, api_key=None, session=None, base_url=PROSPEO_BASE_URL, timeout=15):
+    def __init__(self, api_key=None, session=None, base_url=PROSPEO_BASE_URL, timeout=15,
+                 min_interval=None, retry_wait=None):
         self.api_key = api_key
         self.session = session or requests.Session()
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
+        self.min_interval = PROSPEO_MIN_INTERVAL if min_interval is None else min_interval
+        self.retry_wait = PROSPEO_RETRY_WAIT if retry_wait is None else retry_wait
+        self._last_call = 0.0
+
+    def _post(self, url, payload):
+        """POST spaced at least min_interval apart, retrying once after a 429."""
+        for attempt in range(2):
+            wait = self.min_interval - (time.monotonic() - self._last_call)
+            if wait > 0:
+                time.sleep(wait)
+            res = self.session.post(url, json=payload, headers=self._headers(), timeout=self.timeout)
+            self._last_call = time.monotonic()
+            if res.status_code != 429 or attempt == 1:
+                return res
+            print(f"[Enrich] Prospeo rate limit hit; waiting {self.retry_wait}s and retrying once.")
+            time.sleep(self.retry_wait)
+        return res
 
     def _headers(self):
         return {
@@ -192,7 +215,7 @@ class ProspeoClient:
                 }
             }
         }
-        res = self.session.post(url, json=payload, headers=self._headers(), timeout=self.timeout)
+        res = self._post(url, payload)
         if res.status_code in (401, 402, 429):
             return {"error_status": res.status_code}
         if res.status_code != 200:
@@ -200,6 +223,7 @@ class ProspeoClient:
 
         data = res.json()
         contacts = []
+        lookups_left = PROSPEO_MAX_LOOKUPS  # each email lookup costs a credit; spend them on hiring decision-makers only
 
         items = data.get("results") or data.get("data") or data.get("response") or data.get("emails") or []
         if isinstance(items, list):
@@ -212,20 +236,24 @@ class ProspeoClient:
                 em_str = ""
                 verif_status = "unknown"
                 if isinstance(em_field, dict):
-                    em_str = em_field.get("email", "")
-                    verif_status = em_field.get("status", "unknown")
+                    em_str = em_field.get("email") or ""  # null when Prospeo has no address for them
+                    verif_status = em_field.get("status") or "unknown"
                 elif isinstance(em_field, str):
                     em_str = em_field
                     verif_status = p.get("verification_status") or p.get("status") or "unknown"
+                if "*" in em_str:
+                    em_str = ""  # masked until revealed with a paid lookup; never store or send to it
 
-                first = p.get("first_name", "")
-                last = p.get("last_name", "")
+                first = p.get("first_name") or ""
+                last = p.get("last_name") or ""
                 full_name = p.get("full_name") or f"{first} {last}".strip() or None
-                title = p.get("job_title") or p.get("title") or p.get("position")
+                title = p.get("current_job_title") or p.get("job_title") or p.get("title") or p.get("position")
                 conf = p.get("confidence_score") or p.get("score") or p.get("confidence")
 
                 person_id = p.get("person_id") or p.get("id")
-                if not em_str and (person_id or (first and last)):
+                worth_a_lookup = classify_title(title)[0] <= 6 and lookups_left > 0
+                if not em_str and worth_a_lookup and (person_id or (first and last)):
+                    lookups_left -= 1
                     try:
                         enrich_res = self.enrich_person(person_id=person_id, first_name=first, last_name=last, domain=domain)
                         if isinstance(enrich_res, dict) and "email" in enrich_res:
@@ -258,14 +286,14 @@ class ProspeoClient:
         if domain:
             data_payload["company_website"] = domain
 
-        res = self.session.post(url, json={"data": data_payload}, headers=self._headers(), timeout=self.timeout)
+        res = self._post(url, {"data": data_payload})
         if res.status_code in (401, 402, 429):
             return {"error_status": res.status_code}
         if res.status_code != 200:
             return {}
 
         data = res.json()
-        resp_obj = data.get("response") or data.get("data") or data
+        resp_obj = data.get("person") or data.get("response") or data.get("data") or data
         em_obj = resp_obj.get("email") or {}
         if isinstance(em_obj, dict):
             return {
@@ -287,13 +315,13 @@ class ProspeoClient:
         Returns dict with 'status' (normalised verification) and optional 'confidence_score'.
         """
         url = f"{self.base_url}{PROSPEO_ENRICH_PERSON_PATH}"
-        res = self.session.post(url, json={"data": {"email": email}}, headers=self._headers(), timeout=self.timeout)
+        res = self._post(url, {"data": {"email": email}})
         if res.status_code in (401, 402, 429):
             return {"error_status": res.status_code}
         if res.status_code != 200:
             return {}
         data = res.json()
-        resp_obj = data.get("response") or data.get("data") or data
+        resp_obj = data.get("person") or data.get("response") or data.get("data") or data
         em_obj = resp_obj.get("email") or {}
         if isinstance(em_obj, dict):
             return {
@@ -324,6 +352,7 @@ class ContactEnricher:
         self._prospeo_disabled = False
         self._apify_disabled = False
         self._exa_disabled = False
+        self._refresh = False
         self._notices_printed = set()
 
         self.stats = {
@@ -334,6 +363,7 @@ class ContactEnricher:
                 "enriched_person": 0,
                 "enriched_departmental": 0,
                 "generic_inbox_only": 0,
+                "people_found_no_email": 0,
                 "no_contact_found": 0,
                 "manual_primary_preserved": 0,
             },
@@ -538,6 +568,104 @@ class ContactEnricher:
 
         return candidates, providers_tried
 
+    def _find_named_people(self, company, domain, candidates) -> tuple[list[dict], list[dict], list[str]]:
+        """
+        Runs only when no hiring decision-maker with an email turned up. Asks Exa for named engineering leaders,
+        hiring staff and founders, then, if Hunter is configured, looks up a verified email for the best two.
+        Addresses are never guessed. Returns (people, new_candidates, providers_tried).
+        """
+        if any(c["tier"] <= 6 and c.get("can_be_primary", False) for c in candidates):
+            return [], [], []
+        if not domain or not self.exa or self._exa_disabled:
+            return [], [], []
+        if db.list_people(self.conn, company["id"]) and not self._refresh:
+            return [], [], []  # names already found on an earlier run; review them instead of paying again
+        self.stats["provider_calls"]["exa"] += 1
+        try:
+            found = self.exa.find_people(company["name"], domain)
+        except Exception as e:
+            print(f"[Enrich] Exa people search failed: {e}")
+            return [], [], ["exa"]
+
+        people = []
+        for p in found if isinstance(found, list) else []:
+            title = (p.get("title") or "").strip() or None
+            tier, _ = classify_title(title)
+            if tier == 9:
+                continue  # sales, marketing, support: not who decides on an engineering hire
+            people.append({"full_name": p["name"].strip(), "title": title,
+                           "profile_url": p.get("profile_url") or None, "tier": tier})
+        people.sort(key=lambda p: p["tier"])
+
+        providers = ["exa"]
+        new_candidates = []
+        known = {(c.get("full_name") or "").lower() for c in candidates}
+        targets = [p for p in people
+                   if p["tier"] <= 6 and len(p["full_name"].split()) >= 2 and p["full_name"].lower() not in known][:2]
+        if targets and self._check_configured("hunter", self.hunter_key) and not self._hunter_disabled:
+            providers.append("hunter")
+            for p in targets:
+                cand = self._hunter_find_email(domain, p)
+                if cand:
+                    new_candidates.append(cand)
+        return people, new_candidates, providers
+
+    def _hunter_find_email(self, domain, person):
+        """Hunter Email Finder for one named person. Returns a candidate only for a verified or high-score address."""
+        if self._hunter_disabled:
+            return None
+        self.stats["provider_calls"]["hunter"] += 1
+        try:
+            res = self.session.get(
+                f"{HUNTER_BASE_URL}{HUNTER_EMAIL_FINDER_PATH}",
+                params={"domain": domain, "full_name": person["full_name"], "api_key": self.hunter_key},
+                timeout=15,
+            )
+        except requests.RequestException as e:
+            print(f"[Enrich] Hunter email-finder request exception: {e}")
+            return None
+        if res.status_code in (401, 402, 429):
+            self._hunter_disabled = True
+            print(f"[Enrich] Hunter returned HTTP {res.status_code}; disabling provider for remainder of run.")
+            return None
+        if res.status_code != 200:
+            return None
+        data = (res.json() or {}).get("data") or {}
+        email = data.get("email")
+        if not email or "@" not in email:
+            return None
+        verif = data.get("verification")
+        v_status = normalize_verification(verif.get("status") if isinstance(verif, dict) else verif)
+        score = data.get("score")
+        if v_status == "invalid" or (v_status != "valid" and (score or 0) < HUNTER_MIN_FINDER_SCORE):
+            return None
+        return {
+            "email": email.strip().lower(),
+            "full_name": person["full_name"],
+            "title": person["title"],
+            "source": "hunter",
+            "confidence_score": score,
+            "verification_status": v_status,
+            "email_kind": "person",
+            "tier": person["tier"],
+            "can_be_primary": True,
+        }
+
+    def _stored_apify_candidates(self, company_id) -> list[dict]:
+        """Contacts from an earlier website scrape, in candidate form, so a re-run ranks them without re-scraping."""
+        tiers = {"departmental": (7, True), "generic": (10, False), "person": (8, True)}
+        out = []
+        for c in db.list_contacts(self.conn, company_id):
+            if c["source"] != "apify":
+                continue
+            tier, can_be_primary = tiers.get(c["email_kind"] or "generic", (10, False))
+            out.append({
+                "email": c["email"], "full_name": c["full_name"], "title": c["title"], "source": "apify",
+                "confidence_score": c["confidence_score"], "verification_status": c["verification_status"] or "unknown",
+                "email_kind": c["email_kind"] or "generic", "tier": tier, "can_be_primary": can_be_primary,
+            })
+        return out
+
     def _collect_apify_candidates(self, company, domain, scraped_items) -> tuple[list[dict], list[str]]:
         """
         Parses pre-scraped Apify dataset items for a company's domain.
@@ -571,19 +699,17 @@ class ContactEnricher:
                 if any(term in local_p for term in NON_HIRING_INBOXES):
                     continue
 
-                # Classify departmental vs generic vs person
-                if local_p in DEPARTMENTAL_INBOXES or any(local_p.startswith(f"{d}+") or local_p.startswith(f"{d}-") or local_p == d for d in DEPARTMENTAL_INBOXES):
-                    kind = "departmental"
+                # Classify departmental vs generic vs person (an address only counts as a person if it reads like a name)
+                kind = db.classify_address(em_clean, domain)
+                if kind == "departmental":
                     tier = 7  # Departmental inbox ranks above Other Person (Tier 8)
                     title = "Departmental Inbox"
                     can_be_primary = True
-                elif local_p in GENERIC_INBOXES or any(local_p.startswith(f"{g}+") or local_p.startswith(f"{g}-") or local_p == g for g in GENERIC_INBOXES):
-                    kind = "generic"
+                elif kind == "generic":
                     tier = 10
                     title = "Generic Inbox"
                     can_be_primary = False  # NEVER primary
                 else:
-                    kind = "person"
                     tier = 8  # Other person contact
                     title = None
                     can_be_primary = True
@@ -602,7 +728,7 @@ class ContactEnricher:
 
         return candidates, providers_tried
 
-    def _persist(self, company, candidates, providers_tried) -> dict:
+    def _persist(self, company, candidates, providers_tried, people=()) -> dict:
         """
         Persists contacts and updates company status/notes once per company.
         Returns summary dict.
@@ -656,19 +782,41 @@ class ContactEnricher:
 
         self.stats["contacts_added"] += contacts_added
 
+        # Named people, linked to their contact when an email for them was found
+        email_by_name = {(c["full_name"] or "").lower(): c["email"] for c in all_candidates if c.get("full_name")}
+        for p in people:
+            contact_id = None
+            email = email_by_name.get(p["full_name"].lower())
+            if email:
+                row = db.find_contact_by_email(self.conn, email)
+                contact_id = row["id"] if row else None
+            db.add_person(self.conn, company_id, p["full_name"], title=p["title"],
+                          profile_url=p["profile_url"], source="exa", contact_id=contact_id)
+
         # STATUS SCOPE:
         # Only change company status when currently Pending or Skipped(no_contact_found / generic_inbox_only)
         status_modifiable = (curr_status == "Pending") or (
-            curr_status == "Skipped" and curr_notes in ("no_contact_found", "generic_inbox_only")
+            curr_status == "Skipped" and curr_notes in ("no_contact_found", "generic_inbox_only", "people_found_no_email")
         )
 
-        if not all_candidates:
+        # Names found on this run or an earlier one
+        has_people = bool(people) or bool(db.list_people(self.conn, company_id))
+
+        if not all_candidates and not has_people:
             outcome = "no_contact_found"
             primary_email = existing_primary["email"] if existing_primary else None
             primary_title = existing_primary["title"] if existing_primary else None
             self.stats["outcomes"]["no_contact_found"] += 1
             if status_modifiable:
                 db.update_company(self.conn, company_id, status="Skipped", notes="no_contact_found")
+        elif not primary_eligible and has_people:
+            # Named decision-makers but no usable address for them: stays Pending so one can be added in review
+            outcome = "people_found_no_email"
+            primary_email = existing_primary["email"] if existing_primary else None
+            primary_title = existing_primary["title"] if existing_primary else None
+            self.stats["outcomes"]["people_found_no_email"] += 1
+            if status_modifiable:
+                db.update_company(self.conn, company_id, status="Pending", notes="people_found_no_email")
         elif not primary_eligible:
             # Only generic inboxes or non-hiring titles found
             outcome = "generic_inbox_only"
@@ -696,7 +844,7 @@ class ContactEnricher:
                 fields = {}
                 if curr_status != "Pending":
                     fields["status"] = "Pending"
-                if curr_notes in ("no_contact_found", "generic_inbox_only"):
+                if curr_notes in ("no_contact_found", "generic_inbox_only", "people_found_no_email"):
                     fields["notes"] = ""
                 if fields:
                     db.update_company(self.conn, company_id, **fields)
@@ -713,7 +861,7 @@ class ContactEnricher:
         print(
             f"[Enrich] '{company_name}' (id={company_id}): outcome={outcome} | "
             f"primary={primary_email or 'None'} ({primary_title or 'None'}) | "
-            f"contacts_added={contacts_added} | providers={providers_tried}"
+            f"contacts_added={contacts_added} | people={len(people)} | providers={providers_tried}"
         )
         return summary
 
@@ -728,6 +876,9 @@ class ContactEnricher:
         comp = fresh_row or company_row
 
         candidates, providers_tried = self._collect_api_candidates(comp, website, domain)
+        people, named_cands, people_provs = self._find_named_people(comp, domain, candidates)
+        candidates.extend(named_cands)
+        providers_tried.extend(p for p in people_provs if p not in providers_tried)
 
         # Apify fallback if no target person candidate found (Tiers 1-6)
         has_target_person = any(c["tier"] <= 6 and c.get("can_be_primary", False) for c in candidates)
@@ -748,7 +899,7 @@ class ContactEnricher:
                 except Exception as e:
                     print(f"[Enrich] Apify run exception: {e}")
 
-        return self._persist(comp, candidates, providers_tried)
+        return self._persist(comp, candidates, providers_tried, people)
 
     def run(self, limit=10, statuses=("Pending",), company_ids=None, refresh=False, dry_run=False) -> list[dict]:
         """
@@ -756,6 +907,7 @@ class ContactEnricher:
         Skips companies that already have a person primary unless refresh=True.
         In dry_run: calls providers but writes nothing (transaction + rollback).
         """
+        self._refresh = refresh
         if dry_run:
             print("[Enrich] Mode: DRY-RUN (all database modifications will be rolled back).")
             self.conn.execute("SAVEPOINT dry_run_sp")
@@ -799,17 +951,34 @@ class ContactEnricher:
             needing_apify = []
             for comp, web, dom in company_data:
                 cid = comp["id"]
-                cands, provs = self._collect_api_candidates(comp, web, dom)
+                try:
+                    cands, provs = self._collect_api_candidates(comp, web, dom)
+                    people, named_cands, people_provs = self._find_named_people(comp, dom, cands)
+                except Exception as e:
+                    # One malformed provider response must not throw away the rest of the run
+                    print(f"[Enrich] '{comp['name']}' skipped after an error: {type(e).__name__}: {e}")
+                    continue
+                cands.extend(named_cands)
+                provs.extend(p for p in people_provs if p not in provs)
                 per_company_data[cid] = {
                     "comp": comp,
                     "website": web,
                     "domain": dom,
                     "candidates": cands,
                     "providers_tried": provs,
+                    "people": people,
                 }
                 has_target_person = any(c["tier"] <= 6 and c.get("can_be_primary", False) for c in cands)
+                # A site that was already scraped returns the same inboxes again: reuse what is stored instead of
+                # paying for another scrape, unless --refresh
+                stored = self._stored_apify_candidates(cid)
                 if not has_target_person:
-                    needing_apify.append(cid)
+                    if stored and not refresh:
+                        cands.extend(stored)
+                        if "apify" not in provs:
+                            provs.append("apify")
+                    else:
+                        needing_apify.append(cid)
 
             # 5. One batched Apify run for companies lacking a person candidate
             if needing_apify and self.apify and not self._apify_disabled:
@@ -838,9 +1007,11 @@ class ContactEnricher:
             # 6. Persist each company exactly once
             for comp, _, _ in company_data:
                 cid = comp["id"]
+                if cid not in per_company_data:
+                    continue
                 entry = per_company_data[cid]
                 fresh_row = db.get_company(self.conn, cid) or entry["comp"]
-                summary = self._persist(fresh_row, entry["candidates"], entry["providers_tried"])
+                summary = self._persist(fresh_row, entry["candidates"], entry["providers_tried"], entry["people"])
                 results.append(summary)
 
             # 7. Print final credits / usage summary

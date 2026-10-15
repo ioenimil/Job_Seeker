@@ -140,7 +140,7 @@ class TestSchemaV2(unittest.TestCase):
         conn = db.connect(path)
         columns = [r["name"] for r in conn.execute("PRAGMA table_info(outreaches)")]
         self.assertIn("body", columns)
-        self.assertEqual(conn.execute("PRAGMA user_version").fetchone()[0], 2)
+        self.assertEqual(conn.execute("PRAGMA user_version").fetchone()[0], 3)
         conn.close()
 
 

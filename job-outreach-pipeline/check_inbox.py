@@ -40,10 +40,22 @@ def extract_body_and_snippet(msg):
                 payload = part.get_payload(decode=True)
                 if payload:
                     text_parts.append(payload.decode("utf-8", errors="replace"))
+        if not text_parts:
+            for part in msg.walk():
+                ctype = part.get_content_type()
+                cdisp = str(part.get("Content-Disposition", ""))
+                if ctype == "text/html" and "attachment" not in cdisp:
+                    payload = part.get_payload(decode=True)
+                    if payload:
+                        html = payload.decode("utf-8", errors="replace")
+                        text_parts.append(re.sub(r'<[^>]+>', ' ', html))
     else:
         payload = msg.get_payload(decode=True)
         if payload:
-            text_parts.append(payload.decode("utf-8", errors="replace"))
+            raw = payload.decode("utf-8", errors="replace")
+            if msg.get_content_type() == "text/html":
+                raw = re.sub(r'<[^>]+>', ' ', raw)
+            text_parts.append(raw)
 
     full_body = "\n".join(text_parts).strip()
     collapsed = " ".join(full_body.split())

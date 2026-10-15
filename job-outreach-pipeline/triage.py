@@ -76,6 +76,20 @@ def format_contacts_table(contacts: list) -> tuple[Table, bool, bool]:
     return table, has_primary, is_generic_primary
 
 
+def format_people_table(people: list) -> Table:
+    """Named decision-makers found by search. Those without an email need one added via [E] before sending."""
+    table = Table(title="People found (add an email with [E] → 4)", expand=False)
+    table.add_column("ID", justify="right")
+    table.add_column("Name")
+    table.add_column("Title")
+    table.add_column("Email")
+    table.add_column("Where it says so")
+    for p in people:
+        table.add_row(str(p["id"]), p["full_name"], p["title"] or "", p["email"] or "[dim]none yet[/dim]",
+                      p["profile_url"] or "")
+    return table
+
+
 def format_pitch_panel(pitch: dict) -> Panel:
     lead = pitch.get("lead", "")
     bullets = pitch.get("bullets", [])
@@ -112,9 +126,10 @@ def handle_edit_menu(conn, company_id: int, contacts: list, console: Console, as
     console.print("1. Set existing contact as primary")
     console.print("2. Add manual contact")
     console.print("3. Override company role title")
-    console.print("4. Back")
+    console.print("4. Add an email for a person found")
+    console.print("5. Back")
 
-    choice = ask_fn("Choose an option [1-4]", choices=["1", "2", "3", "4"], default="4")
+    choice = ask_fn("Choose an option [1-5]", choices=["1", "2", "3", "4", "5"], default="5")
 
     if choice == "1":
         if not contacts:
@@ -132,7 +147,11 @@ def handle_edit_menu(conn, company_id: int, contacts: list, console: Console, as
         email = ask_fn("Enter contact email").strip()
         name = ask_fn("Enter contact name (optional)", default="").strip() or None
         title = ask_fn("Enter contact title (optional)", default="").strip() or None
-        kind = ask_fn("Enter email kind [person/departmental]", choices=["person", "departmental"], default="person")
+        # The address decides: careers@ stays a shared inbox even when you know who reads it
+        company = db.get_company(conn, company_id)
+        kind = db.classify_address(email, company["domain"] or company["website"])
+        if kind == "generic":
+            console.print("[yellow]That is a shared front-desk inbox; it can't be approved for sending.[/yellow]")
         try:
             cid = db.add_contact(
                 conn, company_id, email, full_name=name, title=title,
@@ -148,10 +167,46 @@ def handle_edit_menu(conn, company_id: int, contacts: list, console: Console, as
             db.update_company(conn, company_id, role_title=new_role)
             console.print(f"[green]Updated role title to: {new_role}[/green]")
 
+    elif choice == "4":
+        people = [p for p in db.list_people(conn, company_id) if not p["email"]]
+        if not people:
+            console.print("[red]No people without an email for this company.[/red]")
+            return
+        for p in people:
+            console.print(f"  [{p['id']}] {p['full_name']} ({p['title'] or 'no title'})")
+        pid = int(ask_fn("Enter person ID", choices=[str(p["id"]) for p in people]))
+        person = next(p for p in people if p["id"] == pid)
+        email = ask_fn(f"Email for {person['full_name']} (only one you have seen published or confirmed)").strip()
+        try:
+            cid = db.add_contact(conn, company_id, email, full_name=person["full_name"], title=person["title"],
+                                 source="manual", email_kind="person", make_primary=True)
+            db.add_person(conn, company_id, person["full_name"], contact_id=cid)
+            console.print(f"[green]Added {email} for {person['full_name']} as primary.[/green]")
+        except Exception as e:
+            console.print(f"[red]Failed to add contact: {e}[/red]")
 
-def run_review(conn=None, statuses=("Pending",), limit=None, console=None, ask_fn=None):
+
+DECISION_MAKER_TIER = 6  # CTO, VP/Head of Engineering, Eng Manager, Talent/HR lead, Tech Lead, Founder/CEO
+
+
+def ready_companies(conn, statuses=("Pending",)):
     """
-    Interactive review TUI for company triage.
+    Companies whose primary contact is a named hiring decision-maker at a person's address: the ones that can be
+    approved as they are. Returns [(company_row, contact_row)] in id order.
+    """
+    from contact_enricher import classify_title
+    ready = []
+    for company in db.list_companies(conn, statuses=statuses, order_by="id"):
+        contact = db.get_primary_contact(conn, company["id"])
+        if (contact and contact["email_kind"] == "person" and contact["full_name"]
+                and classify_title(contact["title"])[0] <= DECISION_MAKER_TIER):
+            ready.append((company, contact))
+    return ready
+
+
+def run_review(conn=None, statuses=("Pending",), limit=None, console=None, ask_fn=None, company_ids=None):
+    """
+    Interactive review TUI for company triage. company_ids limits it to those companies (e.g. ready_companies).
     """
     close_conn = False
     if conn is None:
@@ -170,6 +225,8 @@ def run_review(conn=None, statuses=("Pending",), limit=None, console=None, ask_f
 
     try:
         companies = db.list_companies(conn, statuses=statuses, order_by="id")
+        if company_ids is not None:
+            companies = [c for c in companies if c["id"] in set(company_ids)]
         if limit:
             companies = companies[:limit]
 
@@ -189,10 +246,17 @@ def run_review(conn=None, statuses=("Pending",), limit=None, console=None, ask_f
                 ctable, has_primary, is_generic_primary = format_contacts_table(contacts)
                 console.print(ctable)
 
+                people = db.list_people(conn, cid)
+                if people:
+                    console.print(format_people_table(people))
+
+                primary = db.get_primary_contact(conn, cid)
                 if not has_primary:
-                    console.print("[bold red]WARNING: No primary contact set![/bold red]")
+                    console.print("[bold red]No primary contact: add a named person's email with [E] first.[/bold red]")
                 elif is_generic_primary:
-                    console.print("[bold red]WARNING: Primary contact is generic email![/bold red]")
+                    console.print("[bold red]Primary is a shared front-desk inbox; it can't be approved.[/bold red]")
+                elif primary["email_kind"] == "departmental":
+                    console.print("[yellow]Primary is a shared hiring inbox (e.g. careers@); a named person is better.[/yellow]")
 
                 # Render Pitch Panel
                 pitch = ensure_pitch(conn, cid, regenerate=False)
@@ -210,6 +274,15 @@ def run_review(conn=None, statuses=("Pending",), limit=None, console=None, ask_f
                     if not has_primary:
                         console.print("[bold red]Cannot Approve: Company has no primary contact! Please Edit [E] first.[/bold red]")
                         continue
+                    if primary["email_kind"] == "generic":
+                        console.print("[bold red]Cannot Approve: the primary is a shared inbox (info@, hello@). "
+                                      "Add a named person's email with [E] first.[/bold red]")
+                        continue
+                    if primary["email_kind"] == "departmental":
+                        confirm = ask_fn(f"{primary['email']} is a shared hiring inbox, not a person. Approve anyway?",
+                                         choices=["y", "n"], default="n")
+                        if confirm.lower() != "y":
+                            continue
                     db.set_company_status(conn, cid, "Approved")
                     approved_count += 1
                     console.print(f"[green]Company {comp_row['name']} Approved.[/green]")

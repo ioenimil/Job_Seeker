@@ -15,6 +15,8 @@ atomically together with its RFC 2822 `Message-ID`, so follow-ups thread correct
  search ──► enrich ──► review ──► generate ──► send ──► check-replies ──► followup
  (Exa)      Hunter      rich TUI    grounded     SMTP      read-only IMAP     In-Reply-To /
             → Prospeo   A/S/E/R/Q   pitch + PDF  + Msg-ID  replies, bounces   References
+            → Exa names
+              + Hunter finder
             → Apify
                          └──────────────── outreach.db (SQLite) ────────────────┘
 ```
@@ -24,7 +26,7 @@ atomically together with its RFC 2822 `Message-ID`, so follow-ups thread correct
 | `outreach_pipeline.py` | CLI tying every step together (see commands below). |
 | `db.py` | SQLite schema and data access: `companies`, `contacts`, `outreaches`, `inbox_events`. WAL mode, foreign keys, `CHECK` constraints, atomic `record_send`. |
 | `migrate_from_csv.py` | One-shot, idempotent import of the old `outreach_queue.csv` / `outreach_log.csv`, with a verification report. |
-| `contact_enricher.py` | Decision-maker waterfall: Hunter.io domain search → Prospeo → Apify scrape fallback. Ranks CTO → VP/Head of Eng → Eng Manager → Head of Talent → Tech Lead → Founder → departmental inbox. Generic inboxes (`info@`, `hello@`) are stored but never made primary. |
+| `contact_enricher.py` | Decision-maker waterfall: Hunter.io domain search → Prospeo → Exa people search (names and titles) + Hunter Email Finder → Apify scrape fallback. Ranks CTO → VP/Head of Eng → Eng Manager → Head of Talent/HR → Tech Lead → Founder → departmental inbox. Generic inboxes (`info@`, `hello@`) are stored but never made primary. |
 | `llm_tailor.py` | Grounded pitch synthesis (Anthropic / OpenAI / Ollama / none) with a code-enforced grounding and style validator. |
 | `style_lint.py` | Mechanical-prose checks shared by the validator and the template tests. |
 | `triage.py` | Interactive review TUI built on `rich`. |
@@ -75,14 +77,16 @@ python outreach_pipeline.py <command> [options]
 | Command | What it does |
 | :--- | :--- |
 | `search "<query>" [local\|remote]` | Exa structured search for employers; adds them as `Pending`. `remote` double-checks that the company's own careers pages accept candidates in Ghana. |
-| `enrich [--limit N] [--company NAME] [--refresh] [--dry-run]` | Runs the Hunter → Prospeo → Apify waterfall for `Pending` companies without a named primary contact. Each provider is called at most once per company; quota errors (401/402/429) disable that provider for the rest of the run. |
-| `review [--limit N]` | Review TUI. Per company: details, Exa summary, ranked contacts (★ = primary), and the tailored pitch. `[A]`pprove, `[S]`kip, `[E]`dit contact/role, `[R]`egenerate pitch, `[N]`ext, `[Q]`uit. A company can't be approved without a primary contact. |
+| `enrich [--limit N] [--company NAME] [--refresh] [--dry-run]` | Runs the waterfall for `Pending` companies without a named primary contact (see *Who gets emailed*). Each provider is called at most once per company; quota errors (401/402/429) disable that provider for the rest of the run. A website already scraped is not scraped again unless `--refresh`. |
+| `review [--limit N]` | Review TUI. Per company: details, Exa summary, ranked contacts (★ = primary), people found without an email, and the tailored pitch. `[A]`pprove, `[S]`kip, `[E]`dit contact/role (option 4 adds an email for a person found), `[R]`egenerate pitch, `[N]`ext, `[Q]`uit. Approval needs a primary contact that is not a generic inbox; a `careers@`-style inbox needs an explicit yes. |
 | `generate` | Compiles cover-letter PDFs for `Approved` companies into `generated_letters/`. |
-| `send [--limit 15] [--dry-run]` | Sends the first email (letter + CV) to `Approved` companies, 30–60 s apart, recording each send and its Message-ID in one transaction. Never emails a company twice. |
+| `send [--limit 15] [--dry-run]` | Sends the first email (letter + CV) to `Approved` companies, 30–60 s apart, recording each send and its Message-ID in one transaction. Never emails a company twice, and never emails a generic inbox. |
 | `check-replies [--days N] [--dry-run] [--test-connection]` | Read-only IMAP scan (`BODY.PEEK`, never marks mail as read). Hard bounces → `Bounced`; replies and unsubscribe requests → `Replied` (with a terminal and desktop alert); out-of-office and delivery *delays* are logged without changing status. Newsletters and your own mail are ignored. |
 | `followup [run] [--limit 10]` | Dry-run by default; `run` sends. Checks the inbox first (a live run aborts if IMAP fails), then sends `Re: <original subject>` with `In-Reply-To`/`References` set to the original Message-ID. |
 | `migrate [--dry-run]` | Imports the legacy CSVs (idempotent). |
 | `status` | Live metrics from `outreach.db`: companies by status, contacts, sends, replies, bounces, follow-ups due. |
+| `restart-shared [--dry-run]` | Moves companies whose first email only reached a shared inbox (`info@`, `careers@`) back to `Pending`, so `enrich` can find a named person and `send` can email them. The earlier sends stay as history and their follow-ups stop. A company whose first email reached a person is never emailed cold again. |
+| `dump [output.sql]` | Flushes SQLite WAL and exports the database to a version-controllable plain-text SQL script (`outreach_dump.sql`). |
 
 A typical day:
 ```bash
@@ -93,6 +97,28 @@ python outreach_pipeline.py send --dry-run      # inspect, then:
 python outreach_pipeline.py send
 python outreach_pipeline.py followup            # dry-run, then: followup run
 ```
+
+---
+
+## Who gets emailed
+
+Cold outreach goes to a named person: an engineering leader, someone in talent/HR, or a founder. A front-desk
+inbox (`info@`, `hello@`, `contact@`) is stored for reference but is never the primary contact and is never
+emailed. A hiring inbox (`careers@`, `hr@`, `jobs@`) can be used, but only after you confirm it in `review`.
+
+An address counts as a person only if it reads like a name (`kofi@`, `kofi.mensah@`, `k_mensah@`). Addresses
+with digits, the company's own name (`acmetech@gmail.com`) or a role word (`data@`, `team@`) are shared
+inboxes; on Gmail/Yahoo/Outlook a single word needs first.last to count.
+
+How named people are found, cheapest first:
+
+1. **Hunter domain search / Prospeo** return people with verified work emails, when the keys are set.
+2. **Exa people search** (about $0.007 per company) finds names and titles from LinkedIn, team pages and press,
+   with the page that says so. These go into the `people` table and show up in `review`.
+3. **Hunter Email Finder** turns the two best-ranked names into addresses. Only a verified address, or one
+   with a score of 70+, is kept; addresses are never guessed, because guesses bounce and hurt deliverability.
+4. Without a Hunter key, names stay in `review` with their source page; look the person up and add their
+   email with `[E]` → 4.
 
 ---
 

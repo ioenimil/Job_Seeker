@@ -45,6 +45,26 @@ VERIFY_SCHEMA = {
     "required": ["ghana_eligible", "note"]
 }
 
+PEOPLE_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "people": {
+            "type": "array",
+            "maxItems": 6,
+            "items": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string"},
+                    "title": {"type": "string"},
+                    "profile_url": {"type": "string"}
+                },
+                "required": ["name", "title", "profile_url"]
+            }
+        }
+    },
+    "required": ["people"]
+}
+
 class ExaSearch:
     def __init__(self):
         self.api_key = config.get("EXA_API_KEY")
@@ -147,6 +167,24 @@ class ExaSearch:
         content = self._structured_search(
             f"{company_name} careers remote engineer location requirements", system_prompt, VERIFY_SCHEMA)
         return content or {"ghana_eligible": "unclear", "note": "Verification search failed."}
+
+    def find_people(self, company_name, domain):
+        """
+        Finds named engineering leaders, hiring/talent staff and founders at the company, with the page that
+        shows each person's role. Returns a list of {"name", "title", "profile_url"}; names only, never emails.
+        """
+        system_prompt = (
+            f"List people who currently work at {company_name} (website {domain}) in engineering or technology "
+            "leadership (CTO, VP/Head/Director of Engineering, engineering manager, tech lead), in talent/recruiting/HR, "
+            f"or as founder/CEO. Include a person only when a page explicitly ties them to {company_name}; a different "
+            "company with a similar name does not count. Leave out former employees. Never guess a name or title. "
+            "profile_url: the page that shows the person's role, preferably their LinkedIn profile or the company's "
+            "team page. Return an empty list if nobody qualifies."
+        )
+        content = self._structured_search(
+            f"{company_name} {domain} CTO head of engineering founder team", system_prompt, PEOPLE_SCHEMA)
+        people = (content or {}).get("people", [])
+        return [p for p in people if isinstance(p, dict) and (p.get("name") or "").strip()]
 
     def company_summary(self, website):
         """

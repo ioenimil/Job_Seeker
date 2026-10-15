@@ -73,17 +73,16 @@ class TestTriage(unittest.TestCase):
 
         # Session:
         # 1. 'E' -> enter edit menu
-        # 2. '2' -> add manual contact
-        #    - email: "hr@delta.com"
-        #    - name: "David HR"
+        # 2. '2' -> add manual contact (kind comes from the address: david@ is a person)
+        #    - email: "david@delta.com"
+        #    - name: "David Owusu"
         #    - title: "Head of Talent"
-        #    - kind: "person"
         # 3. 'E' -> enter edit menu again
         # 4. '3' -> override role
         #    - role: "Lead Systems Architect"
         # 5. 'A' -> approve
         answers = iter([
-            "E", "2", "hr@delta.com", "David HR", "Head of Talent", "person",
+            "E", "2", "david@delta.com", "David Owusu", "Head of Talent",
             "E", "3", "Lead Systems Architect",
             "A"
         ])
@@ -99,7 +98,8 @@ class TestTriage(unittest.TestCase):
 
         primary = db.get_primary_contact(self.conn, cid)
         self.assertIsNotNone(primary)
-        self.assertEqual(primary["email"], "hr@delta.com")
+        self.assertEqual(primary["email"], "david@delta.com")
+        self.assertEqual(primary["email_kind"], "person")
         self.assertEqual(primary["source"], "manual")
 
     def test_triage_quit_action(self):

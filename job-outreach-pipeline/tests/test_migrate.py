@@ -158,8 +158,10 @@ class TestMigrate(unittest.TestCase):
 
         # Check Company Delta: generic email
         c_delta = db.get_company_by_name(conn, "Company Delta")
-        delta_contact = db.get_primary_contact(conn, c_delta["id"])
-        self.assertEqual(delta_contact["email_kind"], "generic")  # info@
+        # info@ is stored, but a generic inbox is never made the primary
+        self.assertIsNone(db.get_primary_contact(conn, c_delta["id"]))
+        delta_contacts = db.list_contacts(conn, c_delta["id"])
+        self.assertEqual([c["email_kind"] for c in delta_contacts], ["generic"])
 
         # Check Company Gamma: Skipped for lack of an email, tagged so enrichment can revive it
         c_gamma = db.get_company_by_name(conn, "Company Gamma")

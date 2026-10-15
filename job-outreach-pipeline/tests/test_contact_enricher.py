@@ -31,6 +31,11 @@ class TestContactEnricher(unittest.TestCase):
         self.db_path = os.path.join(self.temp_dir.name, "test_outreach.db")
         self.conn = db.connect(self.db_path)
         self.mock_session = MagicMock()
+        # No real waiting between mocked Prospeo calls
+        for name in ("PROSPEO_MIN_INTERVAL", "PROSPEO_RETRY_WAIT"):
+            p = patch(f"contact_enricher.{name}", 0)
+            p.start()
+            self.addCleanup(p.stop)
 
     def tearDown(self):
         self.conn.close()
@@ -617,7 +622,8 @@ class TestContactEnricher(unittest.TestCase):
 
         enricher.run(statuses=("Pending",))
 
-        self.assertEqual(self.mock_session.post.call_count, 1)
+        # One request plus one retry for the first company, then nothing for the second
+        self.assertEqual(self.mock_session.post.call_count, 2)
         self.assertTrue(enricher._prospeo_disabled)
 
     def test_run_skips_existing_person_primary_unless_refresh(self):

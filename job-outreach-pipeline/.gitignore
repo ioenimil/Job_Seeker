@@ -34,3 +34,7 @@
 # Tests
 !tests/
 !tests/*.py
+
+# Database & plain-text SQL dump
+!outreach.db
+!outreach_dump.sql

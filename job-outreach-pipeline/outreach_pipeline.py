@@ -143,9 +143,36 @@ def run_enrich(conn, limit=10, refresh=False, dry_run=False, company=None):
     ContactEnricher(conn).run(limit=limit, company_ids=company_ids, refresh=refresh, dry_run=dry_run)
 
 
-def run_review(conn, limit=None):
+def run_review(conn, limit=None, ready_only=False):
     import triage
-    triage.run_review(conn, statuses=("Pending",), limit=limit)
+    ids = [c["id"] for c, _ in triage.ready_companies(conn)] if ready_only else None
+    if ready_only and not ids:
+        print("[Pipeline] No Pending company has a named decision-maker yet. Run 'enrich' first.")
+        return
+    triage.run_review(conn, statuses=("Pending",), limit=limit, company_ids=ids)
+
+
+def show_ready(conn):
+    """Lists Pending companies whose primary is a named decision-maker, with a link to check each person."""
+    import triage
+    from urllib.parse import quote
+    from rich.console import Console
+    from rich.table import Table
+    ready = triage.ready_companies(conn)
+    console = Console()
+    table = Table(title=f"Ready to approve: {len(ready)} companies with a named decision-maker")
+    for col in ("#", "Company", "Contact", "Title", "Email", "Checked"):
+        table.add_column(col)
+    for i, (company, contact) in enumerate(ready, 1):
+        checked = {"valid": "verified", "accept_all": "domain accepts all", "unknown": "not verified"}.get(
+            contact["verification_status"], contact["verification_status"] or "not verified")
+        table.add_row(str(i), company["name"], contact["full_name"], contact["title"] or "", contact["email"], checked)
+    console.print(table)
+    console.print("\nCheck each person on LinkedIn (works at the company, still in the role):")
+    for i, (company, contact) in enumerate(ready, 1):
+        url = "https://www.linkedin.com/search/results/people/?keywords=" + quote(f"{contact['full_name']} {company['name']}")
+        console.print(f"{i:>3}. {company['name']}: {company['website'] or ''}  {url}", soft_wrap=True)
+    console.print("\nApprove or skip them with: python outreach_pipeline.py review --ready")
 
 
 def generate_letter(conn, company, contact):
@@ -179,6 +206,45 @@ def run_generate_letters(conn):
     print("[Pipeline] Cover letter generation complete.")
 
 
+def reached_a_person(company, prior, contact):
+    """
+    True when an earlier first email already reached a person at this company, or this same address.
+    A first email that only reached a shared inbox (info@, careers@) does not count: a named person there
+    may still get one.
+    """
+    if not prior:
+        return False
+    if prior["recipient_email"].lower() == contact["email"].lower():
+        return True
+    return db.classify_address(prior["recipient_email"], company["domain"] or company["website"]) == "person"
+
+
+def restart_shared_inbox_companies(conn, dry_run=False):
+    """
+    Companies whose first email only reached a shared inbox go back to Pending, so enrichment can find a named
+    person for them. The earlier sends stay in outreaches as history; follow-ups to those inboxes stop because
+    the company is no longer 'Sent'. Replied companies are left alone.
+    Returns the list of (company name, shared address) that were (or would be) restarted.
+    """
+    restarted = []
+    with db.transaction(conn):
+        for company in db.list_companies(conn, ("Sent", "Bounced", "Failed")):
+            prior = db.get_initial_outreach(conn, company["id"])
+            if not prior:
+                continue
+            kind = db.classify_address(prior["recipient_email"], company["domain"] or company["website"])
+            if kind == "person":
+                continue
+            restarted.append((company["name"], prior["recipient_email"], company["status"]))
+            if not dry_run:
+                db.update_company(conn, company["id"], status="Pending",
+                                  notes=f"restarted: first email only reached {prior['recipient_email']}")
+    for name, email, status in restarted:
+        print(f"[Restart] {'(dry-run) ' if dry_run else ''}{name} [{status}] -> Pending (earlier email went to {email})")
+    print(f"[Restart] {len(restarted)} companies {'would be ' if dry_run else ''}moved back to Pending.")
+    return restarted
+
+
 def run_send_emails(conn, limit=DAILY_SEND_LIMIT, dry_run=False):
     """
     Sends the first email to Approved companies with a primary contact, up to `limit` per run.
@@ -191,8 +257,13 @@ def run_send_emails(conn, limit=DAILY_SEND_LIMIT, dry_run=False):
         if not contact:
             print(f"[Pipeline] '{company['name']}' has no primary contact; skipping (fix it in 'review').")
             continue
-        if db.get_initial_outreach(conn, company["id"]):
-            # Already emailed once; never send a second cold email
+        if contact["email_kind"] == "generic":
+            # info@/hello@ go to whoever reads the front desk; cold outreach goes to a named person instead
+            print(f"[Pipeline] '{company['name']}': {contact['email']} is a shared inbox, not a person; skipping "
+                  "(add a named contact in 'review').")
+            continue
+        if reached_a_person(company, db.get_initial_outreach(conn, company["id"]), contact):
+            # A person there already has our first email; never send a second cold email
             print(f"[Pipeline] '{company['name']}' already has a sent initial email; marking Sent.")
             if not dry_run:
                 db.set_company_status(conn, company["id"], "Sent")
@@ -287,7 +358,8 @@ def show_status(conn):
         print(f"Companies: {s['total_companies']}")
         for status, n in s["companies"].items():
             print(f"  {status:<14} {n}")
-        print(f"Contacts: {s['contacts']} ({s['person_contacts']} named people)")
+        print(f"Contacts: {s['contacts']} ({s['person_contacts']} at a person's address; "
+              f"{s['people_without_email']} named people still need an email)")
         print(f"Emails sent: {s['outreaches_initial']} initial, {s['outreaches_followup']} follow-ups")
         print(f"Replies: {s['replies']}   Bounces: {s['bounces']}   Follow-ups due: {s['followups_due']}")
         print("-----------------------\n")
@@ -304,7 +376,8 @@ def show_status(conn):
     activity.add_column("Metric")
     activity.add_column("Value", justify="right")
     activity.add_row("Contacts", str(s["contacts"]))
-    activity.add_row("Named decision-makers", str(s["person_contacts"]))
+    activity.add_row("Contacts at a person's address", str(s["person_contacts"]))
+    activity.add_row("Named people still needing an email", str(s["people_without_email"]))
     activity.add_row("Initial emails", str(s["outreaches_initial"]))
     activity.add_row("Follow-ups sent", str(s["outreaches_followup"]))
     activity.add_row("Replies", str(s["replies"]))
@@ -313,6 +386,15 @@ def show_status(conn):
 
     console.print(companies)
     console.print(activity)
+
+
+def dump_db(conn, out_path="outreach_dump.sql"):
+    """Checkpoints WAL and dumps the database to a version-controllable plain-text SQL script."""
+    conn.execute("PRAGMA wal_checkpoint(TRUNCATE);")
+    with open(out_path, "w", encoding="utf-8") as f:
+        for line in conn.iterdump():
+            f.write(f"{line}\n")
+    print(f"[Pipeline] Exported plain-text database dump to {out_path}.")
 
 
 def build_parser():
@@ -331,6 +413,9 @@ def build_parser():
 
     r = sub.add_parser("review", help="Interactive review: approve, skip or edit Pending companies")
     r.add_argument("--limit", type=int)
+    r.add_argument("--ready", action="store_true", help="only companies whose contact is a named decision-maker")
+
+    sub.add_parser("ready", help="List Pending companies with a named decision-maker, ready to approve")
 
     sub.add_parser("generate", help="Compile tailored cover letters for Approved companies")
 
@@ -351,6 +436,12 @@ def build_parser():
     m.add_argument("--dry-run", action="store_true")
 
     sub.add_parser("status", help="Show live metrics from outreach.db")
+
+    sub.add_parser("dump", help="Export outreach.db to a plain-text outreach_dump.sql")
+
+    rs = sub.add_parser("restart-shared", help="Move companies whose first email only reached a shared inbox "
+                                                "(info@, careers@) back to Pending to find a named person")
+    rs.add_argument("--dry-run", action="store_true")
     return p
 
 
@@ -373,7 +464,9 @@ def main(argv=None):
         elif args.cmd == "enrich":
             run_enrich(conn, limit=args.limit, refresh=args.refresh, dry_run=args.dry_run, company=args.company)
         elif args.cmd == "review":
-            run_review(conn, limit=args.limit)
+            run_review(conn, limit=args.limit, ready_only=args.ready)
+        elif args.cmd == "ready":
+            show_ready(conn)
         elif args.cmd == "generate":
             run_generate_letters(conn)
         elif args.cmd == "send":
@@ -384,6 +477,10 @@ def main(argv=None):
             run_check_replies(conn, days=args.days, dry_run=args.dry_run, test_connection=args.test_connection)
         elif args.cmd == "status":
             show_status(conn)
+        elif args.cmd == "dump":
+            dump_db(conn)
+        elif args.cmd == "restart-shared":
+            restart_shared_inbox_companies(conn, dry_run=args.dry_run)
     finally:
         conn.close()
 

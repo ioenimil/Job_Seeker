@@ -1,4 +1,5 @@
 import os
+import re
 import sqlite3
 import urllib.parse
 from datetime import datetime, timedelta
@@ -18,6 +19,57 @@ EMAIL_TYPES = ("initial", "followup")
 OUTREACH_STATUSES = ("SUCCESS", "FAILED")
 INBOX_EVENT_KINDS = ("reply", "bounce", "auto_reply", "unsubscribe")
 STOP_STATUSES = ("Replied", "Bounced")
+PERSON_SOURCES = ("exa", "hunter", "prospeo", "manual")
+
+# Shared inboxes. Departmental ones reach a hiring team; generic ones reach whoever reads the front desk.
+DEPARTMENTAL_INBOXES = {
+    "recruiting", "recruitment", "careers", "career", "jobs", "job", "hr", "talent", "people",
+    "hiring", "tech", "engineering", "dev",
+}
+GENERIC_INBOXES = {
+    "info", "hello", "hi", "contact", "contactus", "office", "admin", "enquiries", "enquiry", "inquiries",
+    "inquiry", "mail", "team", "general", "main", "reception", "business", "partners", "partnerships", "data",
+    "it", "ops", "operations", "service", "services", "customer", "customers", "care", "feedback", "studio",
+    "management", "webmaster", "postmaster", "accounts", "support", "sales", "billing", "marketing", "media",
+    "press", "help", "noreply", "no-reply",
+}
+
+
+FREE_MAIL_DOMAINS = {"gmail.com", "googlemail.com", "yahoo.com", "outlook.com", "hotmail.com", "live.com",
+                     "icloud.com", "proton.me", "protonmail.com", "aol.com", "ymail.com"}
+
+
+def classify_address(email, company_domain=None):
+    """
+    'person', 'departmental' or 'generic' for an address that came without a name (e.g. scraped from a website).
+    Only an address that reads like someone's name counts as a person: kofi@, kofi.mensah@, k_mensah@.
+    Addresses with digits, the company's own name (emmaktech@gmail.com for emmaktech.com) or a role word are
+    shared inboxes. On a free-mail domain a single word is usually the company's account, so it needs first.last.
+    """
+    local, _, domain = (email or "").strip().lower().partition("@")
+    free_mail = domain in FREE_MAIL_DOMAINS
+    if company_domain or not free_mail:
+        domain = bare_domain(company_domain) if company_domain else domain
+    local = local.split("+", 1)[0]
+    tokens = [t for t in re.split(r"[._-]", local) if t]
+    if not tokens:
+        return "generic"
+    if local in DEPARTMENTAL_INBOXES or tokens[0] in DEPARTMENTAL_INBOXES:
+        return "departmental"
+    if local in GENERIC_INBOXES or tokens[0] in GENERIC_INBOXES or local.startswith(("team", "info", "hello", "contact")):
+        return "generic"
+    if any(ch.isdigit() for ch in local):
+        return "generic"
+    labels = [l for l in domain.split(".") if l not in ("www", "mail")]
+    stem = labels[0] if labels and domain not in FREE_MAIL_DOMAINS else ""
+    flat = local.replace(".", "").replace("_", "").replace("-", "")
+    if len(stem) >= 4 and (stem in flat or (len(flat) >= 4 and flat in stem)):
+        return "generic"
+    if not all(t.isalpha() for t in tokens) or len(tokens) > 3:
+        return "generic"
+    if free_mail and len(tokens) < 2:
+        return "generic"
+    return "person"
 
 COMPANY_UPDATABLE_COLUMNS = {
     "name", "website", "domain", "company_type", "company_address",
@@ -160,6 +212,21 @@ def init_db(conn):
     );
     """)
 
+    # Named decision-makers found before (or without) an email address; contact_id links them once one is known
+    conn.execute("""
+    CREATE TABLE IF NOT EXISTS people (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        company_id INTEGER NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+        full_name TEXT NOT NULL COLLATE NOCASE,
+        title TEXT,
+        profile_url TEXT,
+        source TEXT CHECK(source IS NULL OR source IN ('exa', 'hunter', 'prospeo', 'manual')),
+        contact_id INTEGER REFERENCES contacts(id) ON DELETE SET NULL,
+        created_at TEXT,
+        UNIQUE(company_id, full_name)
+    );
+    """)
+
     cur = conn.execute("PRAGMA user_version;")
     row = cur.fetchone()
     version = row[0] if row else 0
@@ -172,6 +239,17 @@ def init_db(conn):
         if "body" not in columns:
             conn.execute("ALTER TABLE outreaches ADD COLUMN body TEXT")
         conn.execute("PRAGMA user_version = 2;")
+    if version < 3:
+        # v3: a scraped address only counts as a person when it reads like one, and a generic inbox
+        # (info@, hello@) is never the primary contact
+        with transaction(conn):
+            rows = conn.execute("SELECT k.id, k.email, COALESCE(co.domain, co.website) FROM contacts k "
+                                "JOIN companies co ON co.id = k.company_id WHERE k.source = 'apify' "
+                                "AND (k.full_name IS NULL OR k.full_name = '')").fetchall()
+            for r in rows:
+                conn.execute("UPDATE contacts SET email_kind = ? WHERE id = ?", (classify_address(r[1], r[2]), r[0]))
+            conn.execute("UPDATE contacts SET is_primary = 0 WHERE is_primary = 1 AND email_kind = 'generic'")
+            conn.execute("PRAGMA user_version = 3;")
 
 
 def connect(db_path=None):
@@ -369,6 +447,9 @@ def add_contact(conn, company_id, email, full_name=None, title=None, source="man
     email_clean = email.strip().lower()
     if not email_clean or "@" not in email_clean or email_clean == "no_email_found":
         raise ValueError(f"Invalid email: {email}")
+    if "*" in email_clean or " " in email_clean:
+        # Providers mask addresses they haven't revealed (s*****@acme.com); those can't be emailed
+        raise ValueError(f"Masked or malformed email: {email}")
 
     if source is not None and source not in CONTACT_SOURCES:
         raise ValueError(f"Invalid contact source: {source}")
@@ -452,6 +533,41 @@ def list_contacts(conn, company_id):
         """SELECT * FROM contacts
         WHERE company_id = ?
         ORDER BY is_primary DESC, confidence_score DESC NULLS LAST, id ASC""",
+        (company_id,)
+    ).fetchall()
+
+
+def add_person(conn, company_id, full_name, title=None, profile_url=None, source="exa", contact_id=None):
+    """
+    Upsert a named decision-maker on (company_id, full_name), case-insensitive.
+    On an existing row: fill NULL title/profile_url/contact_id. Returns person_id.
+    """
+    full_name = (full_name or "").strip()
+    if not full_name:
+        raise ValueError("Person needs a name")
+    if source is not None and source not in PERSON_SOURCES:
+        raise ValueError(f"Invalid person source: {source}")
+    with transaction(conn):
+        row = conn.execute("SELECT * FROM people WHERE company_id = ? AND full_name = ?",
+                           (company_id, full_name)).fetchone()
+        if row:
+            for col, val in (("title", title), ("profile_url", profile_url), ("contact_id", contact_id)):
+                if row[col] is None and val:
+                    conn.execute(f"UPDATE people SET {col} = ? WHERE id = ?", (val, row["id"]))
+            return row["id"]
+        cur = conn.execute(
+            "INSERT INTO people (company_id, full_name, title, profile_url, source, contact_id, created_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (company_id, full_name, title, profile_url, source, contact_id, now_iso()))
+        return cur.lastrowid
+
+
+def list_people(conn, company_id):
+    """Named people for a company, with the linked contact's email (NULL until one is known)."""
+    return conn.execute(
+        """SELECT p.*, c.email AS email FROM people p
+        LEFT JOIN contacts c ON c.id = p.contact_id
+        WHERE p.company_id = ? ORDER BY p.id""",
         (company_id,)
     ).fetchall()
 
@@ -639,6 +755,7 @@ def status_counts(conn):
     total_companies = conn.execute("SELECT COUNT(*) FROM companies").fetchone()[0]
     total_contacts = conn.execute("SELECT COUNT(*) FROM contacts").fetchone()[0]
     person_contacts = conn.execute("SELECT COUNT(*) FROM contacts WHERE email_kind = 'person'").fetchone()[0]
+    people_without_email = conn.execute("SELECT COUNT(*) FROM people WHERE contact_id IS NULL").fetchone()[0]
     outreaches_initial = conn.execute("SELECT COUNT(*) FROM outreaches WHERE email_type = 'initial'").fetchone()[0]
     outreaches_followup = conn.execute("SELECT COUNT(*) FROM outreaches WHERE email_type = 'followup'").fetchone()[0]
     replies = conn.execute("SELECT COUNT(*) FROM inbox_events WHERE kind = 'reply'").fetchone()[0]
@@ -650,6 +767,7 @@ def status_counts(conn):
         "total_companies": total_companies,
         "contacts": total_contacts,
         "person_contacts": person_contacts,
+        "people_without_email": people_without_email,
         "outreaches_initial": outreaches_initial,
         "outreaches_followup": outreaches_followup,
         "replies": replies,

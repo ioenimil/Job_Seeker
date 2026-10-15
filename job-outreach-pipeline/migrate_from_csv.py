@@ -9,14 +9,6 @@ from collections import Counter
 import db
 import applicant
 
-GENERIC_LOCAL_PARTS = {
-    "info", "hello", "contact", "office", "team", "admin", "enquiries", "inquiries", "mail"
-}
-DEPARTMENTAL_LOCAL_PARTS = {
-    "careers", "jobs", "hr", "recruiting", "recruitment", "talent", "people",
-    "hiring", "tech", "engineering"
-}
-
 
 class DryRunRollback(Exception):
     """Internal sentinel exception used to rollback dry-run transactions."""
@@ -35,19 +27,9 @@ def is_person_name(name):
     return True
 
 
-def classify_email(email):
-    """
-    Classifies email kind:
-    - generic: local-part in {info, hello, contact, office, team, admin, enquiries, inquiries, mail}
-    - departmental: local-part in {careers, jobs, hr, recruiting, recruitment, talent, people, hiring, tech, engineering}
-    - person: else
-    """
-    local_part = email.split("@")[0].lower().strip()
-    if local_part in GENERIC_LOCAL_PARTS:
-        return "generic"
-    if local_part in DEPARTMENTAL_LOCAL_PARTS:
-        return "departmental"
-    return "person"
+def classify_email(email, company_domain=None):
+    """person / departmental / generic, using the same rules as enrichment (db.classify_address)."""
+    return db.classify_address(email, company_domain)
 
 
 def is_usable_email(email):
@@ -148,7 +130,7 @@ def migrate(queue_path=None, log_path=None, db_path=None, dry_run=False):
                     continue
                 company_id = comp["id"]
                 clean_email = raw_email.lower().strip()
-                email_kind = classify_email(clean_email)
+                email_kind = classify_email(clean_email, comp["domain"] or comp["website"])
                 recip_name = r.get("recipient_name", "").strip()
                 full_name = recip_name if is_person_name(recip_name) else None
 
@@ -160,7 +142,7 @@ def migrate(queue_path=None, log_path=None, db_path=None, dry_run=False):
                 db.add_contact(
                     conn, company_id=company_id, email=clean_email,
                     full_name=full_name, source="apify", email_kind=email_kind,
-                    make_primary=True
+                    make_primary=(email_kind != "generic")  # a generic inbox is never the primary
                 )
                 if not existing_c:
                     contacts_inserted += 1
