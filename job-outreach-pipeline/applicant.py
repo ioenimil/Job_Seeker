@@ -54,6 +54,8 @@ def salutation(recipient_name):
     if len(words) >= 2:
         if words[0].lower() in TITLES:
             return f"Dear {words[0]} {words[-1]}"
+        if words[0].lower() == "nana" and len(words) >= 2:
+            return f"Dear Nana {words[1]}"
         return f"Dear {words[0]}"
     return f"Dear {name}"
 

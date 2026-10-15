@@ -767,6 +767,7 @@ In short: OpenFn is an open-source, developer-centric workflow automation platfo
 INSERT INTO "companies" VALUES(134,'Anablock','https://anablock.com','anablock.com','ai','','remote','explicit_ghana','https://bebee.com/gh/jobs/ai-ml-software-engineer-remote-ghana-anablock--theirstack-666797714','https://nextleap.app/company/anablock/jobs',NULL,NULL,NULL,NULL,'Pending','2026-10-15 07:43:13','2026-10-15 07:43:13');
 INSERT INTO "companies" VALUES(135,'BLVCK SAPPHIRE','https://www.blvcksapphire.com','blvcksapphire.com','ai','','remote','explicit_ghana','https://relomote.com/jobs/frontend-engineer-mobile-web-190759558','https://www.blvcksapphire.com/careers',NULL,NULL,NULL,NULL,'Pending','2026-10-15 07:43:18','2026-10-15 07:43:18');
 INSERT INTO "companies" VALUES(136,'Mirantly','https://www.mirantly.com','mirantly.com','ai','','remote','explicit_ghana','https://techjobsinghana.com/tjig-jobs/founding-senior-software-engineer/','https://www.mirantly.com/careers',NULL,NULL,NULL,NULL,'Pending','2026-10-15 07:43:22','2026-10-15 07:44:27');
+INSERT INTO "companies" VALUES(137,'Adaptive Computer Solutions (ACS Ghana)','https://www.acsghana.com','acsghana.com','consultancy','North Legon, Accra, Ghana','local','ghana_based',NULL,NULL,'Enterprise software development house and digital transformation partner in Ghana building scalable cloud platforms, microservices, and telecom/fintech integrations for clients like MTN and Stanbic Bank.',NULL,'{"lead": "Client work rewards engineers who can drop into an unfamiliar setup and work out what the client actually needs. The harder part is leaving something that still runs after handover. Some of that work:", "bullets": [{"fact_id": "client-facing-delivery", "title": "Client-Facing Delivery", "text": "At Turing I exceeded client KPIs for data accuracy and volume, helping take the team to #1 in dataset quality on client-verified benchmarks; at BoaSoft I shipped a RAG platform built around the client''s own documents."}, {"fact_id": "infrastructure-as-code", "title": "Infrastructure as Code", "text": "I design scalable AWS environments with Terraform and Docker, including a secure multi-tier VPC and modular application layers, so environments are reproducible across clients."}, {"fact_id": "gitops-secrets", "title": "GitOps & Secrets", "text": "I implement GitOps delivery with Argo CD, treating Git as the single source of truth for cluster state, and inject runtime credentials from HashiCorp Vault to keep secrets out of images and repositories."}], "provider": "none", "model": "deterministic", "grounded": true, "fallback_reason": null, "generated_at": "2026-10-15 22:16:00"}',NULL,'Sent','2026-10-15 22:15:07','2026-10-15 22:17:38');
 CREATE TABLE contacts (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         company_id INTEGER NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
@@ -1036,6 +1037,8 @@ INSERT INTO "contacts" VALUES(260,131,NULL,'Other Person','rosemary@chaingpt.org
 INSERT INTO "contacts" VALUES(261,131,'Ilan Rakhmanov','Other Person','ilan@chaingpt.org','hunter',99,'valid','person',0,'2026-10-15 07:45:11','2026-10-15 07:45:11');
 INSERT INTO "contacts" VALUES(262,131,'Muhammad Adnan Tariq','Chief Technology Officer','adnan@chaingpt.org','hunter',96,'valid','person',1,'2026-10-15 07:45:11','2026-10-15 07:45:11');
 INSERT INTO "contacts" VALUES(263,130,'Archurst Agyarko','CEO','archurst@cosbyte.com','hunter',81,'unknown','person',1,'2026-10-15 07:45:16','2026-10-15 07:45:16');
+INSERT INTO "contacts" VALUES(264,137,'Nana Kofi Aferi','Engineering Manager','kofi@acsint.io','prospeo',95,'valid','person',1,'2026-10-15 22:15:07','2026-10-15 22:15:07');
+INSERT INTO "contacts" VALUES(265,137,'Kofi Amparbeng','Founder & Managing Director','kamparbeng@acsint.io','prospeo',95,'valid','person',0,'2026-10-15 22:15:07','2026-10-15 22:15:07');
 CREATE TABLE inbox_events (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         kind TEXT NOT NULL CHECK(kind IN ('reply', 'bounce', 'auto_reply', 'unsubscribe')),
@@ -1764,6 +1767,30 @@ Portfolio: https://ioenimil.me
 LinkedIn: https://www.linkedin.com/in/isaacoboenimil/
 GitHub: https://github.com/ioenimil
 ');
+INSERT INTO "outreaches" VALUES(73,137,264,'kofi@acsint.io','initial','Forward Deployed / Platform Engineer Application - Isaac Obo Enimil','<179210265439.1431946.15891287466330034320@gmail.com>',NULL,NULL,'SUCCESS',NULL,'2026-10-15 22:17:38','generated_letters/Isaac_Obo_Enimil_Cover_Letter_Adaptive_Computer_Solutions_(ACS_Ghana).pdf','Dear Nana Kofi,
+
+My name is Isaac Obo Enimil. I''m a Platform Engineer (DevOps) at AmaliTech Services GmbH and a Computer Engineering graduate of KNUST, with the AWS Certified Solutions Architect – Associate and Kubernetes and Cloud Native Associate (KCNA) certifications. Alongside the platform work, I build and ship applied AI systems for clients.
+
+I''d like to be considered for Forward Deployed / Platform Engineer work at Adaptive Computer Solutions (ACS Ghana). My CV is attached, along with a cover letter written for Adaptive Computer Solutions (ACS Ghana).
+
+Some of my work:
+- At Turing I exceeded client KPIs for data accuracy and volume, helping take the team to #1 in dataset quality on client-verified benchmarks; at BoaSoft I shipped a RAG platform built around the client''s own documents.
+- I design scalable AWS environments with Terraform and Docker, including a secure multi-tier VPC and modular application layers, so environments are reproducible across clients.
+- I implement GitOps delivery with Argo CD, treating Git as the single source of truth for cluster state, and inject runtime credentials from HashiCorp Vault to keep secrets out of images and repositories.
+
+If it''s useful, I''d be glad to have a short call with someone on your team or one of your engineering leads.
+
+Thanks for reading.
+
+Best regards,
+
+Isaac Obo Enimil
+Kumasi, Ghana
+Phone: +233 59 794 4747
+Portfolio: https://ioenimil.me
+LinkedIn: https://www.linkedin.com/in/isaacoboenimil/
+GitHub: https://github.com/ioenimil
+');
 CREATE TABLE people (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         company_id INTEGER NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
@@ -1901,9 +1928,9 @@ CREATE UNIQUE INDEX idx_contacts_primary
     ON contacts(company_id)
     WHERE is_primary = 1;
 DELETE FROM "sqlite_sequence";
-INSERT INTO "sqlite_sequence" VALUES('companies',136);
-INSERT INTO "sqlite_sequence" VALUES('contacts',263);
-INSERT INTO "sqlite_sequence" VALUES('outreaches',72);
+INSERT INTO "sqlite_sequence" VALUES('companies',137);
+INSERT INTO "sqlite_sequence" VALUES('contacts',265);
+INSERT INTO "sqlite_sequence" VALUES('outreaches',73);
 INSERT INTO "sqlite_sequence" VALUES('inbox_events',11);
 INSERT INTO "sqlite_sequence" VALUES('people',121);
 COMMIT;
