@@ -128,7 +128,7 @@ INSERT INTO "companies" VALUES(21,'AITS','https://aitsapp.com','aitsapp.com','co
 INSERT INTO "companies" VALUES(22,'IPMC','https://ipmcghana.com','ipmcghana.com','consultancy','Accra, Ghana','local','ghana_based','https://ipmcghana.com/','',NULL,NULL,NULL,'no_contact_found','Skipped','2026-10-07 00:00:00','2026-10-10 12:24:58');
 INSERT INTO "companies" VALUES(23,'Jesi AI','https://www.jesiai.com','jesiai.com','ai','Ghana','local','ghana_based','https://www.jesiai.com/','',NULL,NULL,NULL,'no_contact_found','Skipped','2026-10-07 00:00:00','2026-10-10 12:24:58');
 INSERT INTO "companies" VALUES(24,'Ciphonyx Solutions Ltd','https://ciphonyx.com','ciphonyx.com','consultancy','Kumasi, Ghana','local','ghana_based','https://ciphonyx.com/','',NULL,NULL,NULL,'no_contact_found','Skipped','2026-10-07 00:00:00','2026-10-10 12:24:58');
-INSERT INTO "companies" VALUES(25,'Acloe Technologies','https://acloe.com','acloe.com','general_startup','Kumasi, Ghana','local','ghana_based','https://acloe.com/','',NULL,NULL,NULL,'restarted: first email only reached hello@acloe.com','Pending','2026-10-07 00:00:00','2026-10-11 05:22:40');
+INSERT INTO "companies" VALUES(25,'Acloe Technologies','https://acloe.com','acloe.com','general_startup','Kumasi, Ghana','local','ghana_based','https://acloe.com/','',NULL,NULL,NULL,'restarted: first email only reached hello@acloe.com','Replied','2026-10-07 00:00:00','2026-10-16 08:06:54');
 INSERT INTO "companies" VALUES(26,'Team Programmers','https://teamprogrammers.com','teamprogrammers.com','general_startup','Kumasi, Ghana','local','ghana_based','https://teamprogrammers.com/','',NULL,NULL,NULL,'generic_inbox_only','Pending','2026-10-07 00:00:00','2026-10-11 05:39:28');
 INSERT INTO "companies" VALUES(27,'Samasoft Technologies','https://samasoftech.net','samasoftech.net','general_startup','Kumasi, Ghana','local','ghana_based','https://samasoftech.net/','',NULL,NULL,NULL,'generic_inbox_only','Pending','2026-10-07 00:00:00','2026-10-11 05:39:28');
 INSERT INTO "companies" VALUES(28,'Emmaktech Networks','https://emmaktech.com','emmaktech.com','general_startup','Kumasi, Ghana','local','ghana_based','https://emmaktech.com/','',NULL,NULL,NULL,'people_found_no_email','Pending','2026-10-07 00:00:00','2026-10-11 05:39:28');
@@ -1065,6 +1065,7 @@ INSERT INTO "inbox_events" VALUES(9,'bounce','postmaster@abeyiestudios.com','Und
  Isaac Obo Enimil','<ec605a27-0488-4a17-abb6-840ff4af8510@PA2P189MB2691.EURP189.PROD.OUTLOOK.COM>','2026-10-11 06:44:45','[https://products.office.com/en-us/CMSImages/Office365Logo_Orange.png?version=b8d100a9-0a8b-8e6a-88e1-ef488fee0470] Your message to joybonsuschmutz@abeyiestudios.com couldn''t be delivered. joybonsuschmutz wasn''t found at abeyiestudios.com. ioenimil O',117,159,NULL,'2026-10-11 07:00:56');
 INSERT INTO "inbox_events" VALUES(10,'bounce','mailer-daemon@googlemail.com','Delivery Status Notification (Failure)','<6acbac9b.f44bb46d.41c17.4cb1.GMR@mx.google.com>','2026-10-11 08:34:51','** Message not delivered ** There was a problem delivering your message to info@teksol.com. See the technical details below. Learn more here: https://support.google.com/mail/answer/7720 The response was: The recipient server did not accept our reques',64,34,NULL,'2026-10-15 06:57:50');
 INSERT INTO "inbox_events" VALUES(11,'reply','info@kaizentech.tech','Re:  Forward Deployed Engineer Application - Isaac Obo Enimil','<224546143444563968.0.v2@titan.email>','2026-10-14 12:25:03','Hi Enimil, Your email is well received, however there are no current open roles at Kaizen Technologies for the aforementioned related fields. Please do check back later, and keep an eye on our LinkedIn for future roles. All the best, Kaizen Technolog',41,24,10,'2026-10-15 06:58:50');
+INSERT INTO "inbox_events" VALUES(12,'reply','evans.o@acloe.com','Re: Platform & DevOps Engineer Application - Isaac Obo Enimil','<80969f93-840a-4ee1-8133-380ec7057229@me.com>','2026-10-16 07:53:34','Hey Isaac, Your resume looks good, just to confirm; 1. Do you live in kumasi? 2. What is your current state of employment? Regards, Evans. On Oct 7, 2026, at 10:34 PM, ioenimil@gmail.com wrote: Dear Recruiting Team at Acloe Technologies, I hope this ',25,16,8,'2026-10-16 08:06:54');
 CREATE TABLE outreaches (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         company_id INTEGER NOT NULL REFERENCES companies(id),
@@ -1931,6 +1932,6 @@ DELETE FROM "sqlite_sequence";
 INSERT INTO "sqlite_sequence" VALUES('companies',137);
 INSERT INTO "sqlite_sequence" VALUES('contacts',265);
 INSERT INTO "sqlite_sequence" VALUES('outreaches',73);
-INSERT INTO "sqlite_sequence" VALUES('inbox_events',11);
+INSERT INTO "sqlite_sequence" VALUES('inbox_events',12);
 INSERT INTO "sqlite_sequence" VALUES('people',121);
 COMMIT;
