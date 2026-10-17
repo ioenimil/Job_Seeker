@@ -18,9 +18,9 @@ CREATE TABLE companies (
         created_at TEXT,
         updated_at TEXT
     );
-INSERT INTO "companies" VALUES(1,'PepaPay','https://pepapay.com','pepapay.com','fintech','Accra, Ghana','local','ghana_based','https://pepapay.com/','',NULL,NULL,NULL,'people_found_no_email','Pending','2026-10-07 00:00:00','2026-10-15 07:44:14');
-INSERT INTO "companies" VALUES(2,'Solvane Systems','https://www.solvanesystems.com','solvanesystems.com','fintech','Accra, Ghana','local','ghana_based','https://www.solvanesystems.com/','',NULL,NULL,NULL,'generic_inbox_only','Pending','2026-10-07 00:00:00','2026-10-15 07:44:14');
-INSERT INTO "companies" VALUES(3,'DODY Stack','https://dodystack.com','dodystack.com','fintech','Accra, Ghana','local','ghana_based','https://dodystack.com/','',NULL,NULL,NULL,'people_found_no_email','Pending','2026-10-07 00:00:00','2026-10-15 07:44:14');
+INSERT INTO "companies" VALUES(1,'PepaPay','https://pepapay.com','pepapay.com','fintech','Accra, Ghana','local','ghana_based','https://pepapay.com/','',NULL,NULL,NULL,'people_found_no_email','Pending','2026-10-07 00:00:00','2026-10-17 17:39:20');
+INSERT INTO "companies" VALUES(2,'Solvane Systems','https://www.solvanesystems.com','solvanesystems.com','fintech','Accra, Ghana','local','ghana_based','https://www.solvanesystems.com/','',NULL,NULL,NULL,'generic_inbox_only','Pending','2026-10-07 00:00:00','2026-10-17 17:39:20');
+INSERT INTO "companies" VALUES(3,'DODY Stack','https://dodystack.com','dodystack.com','fintech','Accra, Ghana','local','ghana_based','https://dodystack.com/','',NULL,NULL,NULL,'people_found_no_email','Pending','2026-10-07 00:00:00','2026-10-17 17:39:20');
 INSERT INTO "companies" VALUES(4,'SEBBAK Technologies','https://sebbak.com','sebbak.com','fintech','Accra, Ghana','local','ghana_based','https://sebbak.com/','',NULL,NULL,NULL,'no_contact_found','Skipped','2026-10-07 00:00:00','2026-10-10 12:24:58');
 INSERT INTO "companies" VALUES(5,'FinCon Ltd.','https://www.finconghana.com','finconghana.com','fintech','Accra, Ghana','local','ghana_based','https://www.finconghana.com/','',NULL,NULL,NULL,'no_contact_found','Skipped','2026-10-07 00:00:00','2026-10-10 12:24:58');
 INSERT INTO "companies" VALUES(6,'Devarps','https://www.devarps.com','devarps.com','consultancy','Accra, Ghana','local','ghana_based','https://www.devarps.com/','','Devarps is a Ghana-focused software development firm that builds custom software, mobile apps, and SaaS platforms tailored to local realities in Ghana and West Africa. They work with Ghanaian startups, SMEs, and enterprises, handling end-to-end development from architecture to delivery, with an emphasis on offline-first mobile apps, scalable web platforms, and fintech/ERP/CRM-style solutions.
@@ -52,8 +52,8 @@ Key selling points:
 - Proven ability to deliver investor-ready, scalable MVPs and modern cloud transitions with minimal downtime
 
 If you’re evaluating for a Ghana-focused project, Devarps positions itself as a locally oriented, end-to-end development partner with strong fintech integrations, offline-capable mobile apps, and transparent engagement from discovery to handover.',NULL,'{"lead": "Client work rewards engineers who can drop into an unfamiliar setup and work out what the client actually needs. The harder part is leaving something that still runs after handover. Some of that work:", "bullets": [{"fact_id": "client-facing-delivery", "title": "Client-Facing Delivery", "text": "At Turing I exceeded client KPIs for data accuracy and volume, helping take the team to #1 in dataset quality on client-verified benchmarks; at BoaSoft I shipped a RAG platform built around the client''s own documents."}, {"fact_id": "infrastructure-as-code", "title": "Infrastructure as Code", "text": "I design scalable AWS environments with Terraform and Docker, including a secure multi-tier VPC and modular application layers, so environments are reproducible across clients."}, {"fact_id": "gitops-secrets", "title": "GitOps & Secrets", "text": "I implement GitOps delivery with Argo CD, treating Git as the single source of truth for cluster state, and inject runtime credentials from HashiCorp Vault to keep secrets out of images and repositories."}], "provider": "none", "model": "deterministic", "grounded": true, "fallback_reason": null, "generated_at": "2026-10-11 06:02:10"}','restarted: first email only reached hr@devarps.com','Sent','2026-10-07 00:00:00','2026-10-11 06:34:01');
-INSERT INTO "companies" VALUES(7,'Exquode','https://www.exquode.com','exquode.com','consultancy','Accra, Ghana','local','ghana_based','https://www.exquode.com/','',NULL,NULL,NULL,'generic_inbox_only','Pending','2026-10-07 00:00:00','2026-10-15 07:44:14');
-INSERT INTO "companies" VALUES(8,'Gamma Technologies','https://gammatechgh.com','gammatechgh.com','consultancy','Accra, Ghana','local','ghana_based','https://gammatechgh.com/','',NULL,NULL,NULL,'people_found_no_email','Pending','2026-10-07 00:00:00','2026-10-15 07:44:14');
+INSERT INTO "companies" VALUES(7,'Exquode','https://www.exquode.com','exquode.com','consultancy','Accra, Ghana','local','ghana_based','https://www.exquode.com/','',NULL,NULL,NULL,'generic_inbox_only','Pending','2026-10-07 00:00:00','2026-10-17 17:39:20');
+INSERT INTO "companies" VALUES(8,'Gamma Technologies','https://gammatechgh.com','gammatechgh.com','consultancy','Accra, Ghana','local','ghana_based','https://gammatechgh.com/','',NULL,NULL,NULL,'people_found_no_email','Pending','2026-10-07 00:00:00','2026-10-17 17:39:20');
 INSERT INTO "companies" VALUES(9,'TriAxis Technologies','https://triaxistechnologies.com','triaxistechnologies.com','consultancy','Accra, Ghana','local','ghana_based','https://triaxistechnologies.com/','',NULL,NULL,NULL,'people_found_no_email','Pending','2026-10-07 00:00:00','2026-10-15 07:44:14');
 INSERT INTO "companies" VALUES(10,'Apex-Meta','https://apex-meta.com','apex-meta.com','consultancy','Accra, Ghana','local','ghana_based','https://apex-meta.com/','',NULL,NULL,NULL,'generic_inbox_only','Pending','2026-10-07 00:00:00','2026-10-15 07:44:14');
 INSERT INTO "companies" VALUES(11,'Infotype Ghana','https://infotypeghana.com','infotypeghana.com','consultancy','Accra, Ghana','local','ghana_based','https://infotypeghana.com/','',NULL,NULL,NULL,'generic_inbox_only','Pending','2026-10-07 00:00:00','2026-10-11 05:39:28');
@@ -1039,6 +1039,8 @@ INSERT INTO "contacts" VALUES(262,131,'Muhammad Adnan Tariq','Chief Technology O
 INSERT INTO "contacts" VALUES(263,130,'Archurst Agyarko','CEO','archurst@cosbyte.com','hunter',81,'unknown','person',1,'2026-10-15 07:45:16','2026-10-15 07:45:16');
 INSERT INTO "contacts" VALUES(264,137,'Nana Kofi Aferi','Engineering Manager','kofi@acsint.io','prospeo',95,'valid','person',1,'2026-10-15 22:15:07','2026-10-15 22:15:07');
 INSERT INTO "contacts" VALUES(265,137,'Kofi Amparbeng','Founder & Managing Director','kamparbeng@acsint.io','prospeo',95,'valid','person',0,'2026-10-15 22:15:07','2026-10-15 22:15:07');
+INSERT INTO "contacts" VALUES(266,3,'Gati Blaise Makafui','Chief Technology Officer','gatiblaise@dodystack.com','manual',NULL,NULL,'person',1,'2026-10-17 17:50:00','2026-10-17 17:50:00');
+INSERT INTO "contacts" VALUES(267,113,'Leonard','Founder, Full stack developer + CTO','leonard@modularpath.dev','manual',NULL,NULL,'person',1,'2026-10-17 17:50:00','2026-10-17 17:50:00');
 CREATE TABLE inbox_events (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         kind TEXT NOT NULL CHECK(kind IN ('reply', 'bounce', 'auto_reply', 'unsubscribe')),
@@ -1807,7 +1809,7 @@ INSERT INTO "people" VALUES(1,1,'Ebo Mensah','Chief Technology Officer','https:/
 INSERT INTO "people" VALUES(2,1,'Priscilla Adjei','Head of People','https://pepapay.com/','exa',NULL,'2026-10-11 05:23:10');
 INSERT INTO "people" VALUES(3,1,'Kojo Owusu','Co-founder & CEO','https://pepapay.com/','exa',NULL,'2026-10-11 05:23:10');
 INSERT INTO "people" VALUES(4,1,'Akua Asare','Co-founder & COO','https://pepapay.com/','exa',NULL,'2026-10-11 05:23:10');
-INSERT INTO "people" VALUES(5,3,'Gati Blaise Makafui','Chief Technology Officer','https://dodystack.com/portfolio','exa',NULL,'2026-10-11 05:32:26');
+INSERT INTO "people" VALUES(5,3,'Gati Blaise Makafui','Chief Technology Officer','https://dodystack.com/portfolio','exa',266,'2026-10-11 05:32:26');
 INSERT INTO "people" VALUES(6,3,'Glister Baffoe','Co-Founder','https://dodystack.com/portfolio','exa',NULL,'2026-10-11 05:32:26');
 INSERT INTO "people" VALUES(7,3,'Kenneth Ofosu Antwi','Chief Executive Officer','https://linkedin.com/in/kenneth-ofosu-antwi-3010a6166','exa',NULL,'2026-10-11 05:32:26');
 INSERT INTO "people" VALUES(8,6,'Richard Bunnah','Founder & CEO','https://www.devarps.com/about','exa',NULL,'2026-10-11 05:32:27');
@@ -1896,7 +1898,7 @@ INSERT INTO "people" VALUES(90,109,'Isaac Sesi','Founder and CEO, Head Of Produc
 INSERT INTO "people" VALUES(91,109,'Ayatullahi Zakaria','Head of Hardware','https://sesitechnologies.com/sesi-technologies-academy/','exa',NULL,'2026-10-11 05:32:28');
 INSERT INTO "people" VALUES(92,109,'Papa Kwaku Afful','Head of Mechanical engineering','https://sesitechnologies.com/sesi-technologies-academy/','exa',NULL,'2026-10-11 05:32:28');
 INSERT INTO "people" VALUES(93,112,'Selassie Sallas-Mensah','Founder & CEO, Lead AI SaaS Engineer / Product Owner','https://linkedin.com/in/selassiesallas','exa',NULL,'2026-10-11 05:32:28');
-INSERT INTO "people" VALUES(94,113,'Leonard','Founder, Full stack developer + CTO','https://modularpath.dev/about','exa',NULL,'2026-10-11 05:32:29');
+INSERT INTO "people" VALUES(94,113,'Leonard','Founder, Full stack developer + CTO','https://modularpath.dev/about','exa',267,'2026-10-11 05:32:29');
 INSERT INTO "people" VALUES(95,113,'Boateng','Co-Founder, Cyber Security Lead + Engineering','https://modularpath.dev/about','exa',NULL,'2026-10-11 05:32:29');
 INSERT INTO "people" VALUES(96,117,'Abeyie Bonsu Schmutz','Co-Founder','https://linkedin.com/in/abeyie-bonsu-schmutz','exa',158,'2026-10-11 05:32:29');
 INSERT INTO "people" VALUES(97,117,'Joy Bonsu Schmutz','Co-Founder','https://linkedin.com/company/abeyie-digital-business-services','exa',159,'2026-10-11 05:32:29');
@@ -1930,7 +1932,7 @@ CREATE UNIQUE INDEX idx_contacts_primary
     WHERE is_primary = 1;
 DELETE FROM "sqlite_sequence";
 INSERT INTO "sqlite_sequence" VALUES('companies',137);
-INSERT INTO "sqlite_sequence" VALUES('contacts',265);
+INSERT INTO "sqlite_sequence" VALUES('contacts',267);
 INSERT INTO "sqlite_sequence" VALUES('outreaches',73);
 INSERT INTO "sqlite_sequence" VALUES('inbox_events',12);
 INSERT INTO "sqlite_sequence" VALUES('people',121);
